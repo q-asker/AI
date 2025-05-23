@@ -11,7 +11,7 @@ class GenerateService:
         file_url = generate_request.file_url
         quiz_count = generate_request.quiz_count
 
-        # bedrock에게 문제 생성요청그리고 결과
+        # bedrock에 문제 생성 요청 그리고 결과
 
         return GenerateResponse(
             title="인해대학교 문제집",
