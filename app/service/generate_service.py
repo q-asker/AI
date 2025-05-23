@@ -1,4 +1,3 @@
-import json
 import os
 from uuid import uuid4
 
@@ -67,7 +66,6 @@ class GenerateService:
             }
 
             response = requests.post(aws_lambda_url, json=payload).json()
-            response_dict = json.loads(response)
-            quizzes.append(response_dict["body"])
+            quizzes.append(response)
 
         return quizzes
