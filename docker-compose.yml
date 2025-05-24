@@ -1,0 +1,14 @@
+services:
+  q-asker-redis:
+    image: redis:latest
+    container_name: q-asker-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    expose:
+      - "6379"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
