@@ -9,6 +9,7 @@ from app.util.redis_util import RedisUtil
 
 load_dotenv()
 aws_lambda_url = os.getenv("AWS_LAMBDA_URL")
+time_out = int(os.getenv("TIME_OUT", 60))
 
 
 async def request_to_bedrock(bedrock_contents):
@@ -34,16 +35,22 @@ async def request_to_bedrock(bedrock_contents):
         requests.post(aws_lambda_url, json=payload)
 
     quizzes = []
-    pubsub = await redis_util.subscribe(message_group_id)
-    count = 0
-    async for msg in pubsub.listen():
-        print(msg)
-        if msg["type"] != "message":
-            continue
-        count += 1
-        quizzes.append(msg["data"])
-        if count >= quiz_count:
-            await pubsub.unsubscribe(f"notify:{message_group_id}")
-            break
+    try:
+        async with asyncio.timeout(time_out):
+            pubsub = await redis_util.subscribe(message_group_id)
+            count = 0
+            async for msg in pubsub.listen():
+                print(msg)
+                if msg["type"] != "message":
+                    continue
+                count += 1
+                quizzes.append(msg["data"])
+                if count >= quiz_count:
+                    await pubsub.unsubscribe(f"notify:{message_group_id}")
+                    break
+
+    except asyncio.TimeoutError:
+        await pubsub.unsubscribe(f"notify:{message_group_id}")
+        raise TimeoutError
 
     return quizzes
