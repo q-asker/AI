@@ -5,4 +5,4 @@ from app.dto.model.problem import Problem
 
 class GenerateResponse(BaseModel):
     title: str
-    problems: list[Problem]
+    quiz: list[Problem]

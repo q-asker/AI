@@ -12,8 +12,8 @@ def get_generate_service():
 
 
 @router.post("/generate")
-async def generate(
+def generate(
         request: GenerateRequest,
         generate_service=Depends(get_generate_service)
 ):
-    return await generate_service.generate(request)
+    return generate_service.generate(request)
