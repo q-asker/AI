@@ -9,12 +9,13 @@ from dotenv import load_dotenv
 from app.util.redis_util import RedisUtil
 
 load_dotenv()
+aws_region = os.getenv("AWS_REGION")
 aws_lambda_url = os.getenv("AWS_LAMBDA_URL")
 aws_sqs_url = os.getenv("AWS_SQS_URL")
 time_out = int(os.getenv("TIME_OUT", 60))
 
 
-sqs = boto3.client("sqs")
+sqs = boto3.client("sqs", region_name=aws_region)
 
 
 async def request_to_bedrock(bedrock_contents):
