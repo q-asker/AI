@@ -62,5 +62,5 @@ jobs:
             docker pull ${{ env.DOCKER_ID }}/${{ env.DOCKER_IMAGE_NAME }}
             docker stop ${{ env.CONTAINER_NAME }} || true
             docker rm ${{ env.CONTAINER_NAME }} || true
-            docker run -d --name ${{ env.CONTAINER_NAME }} -p 8000:8000
+            docker run -d --name ${{ env.CONTAINER_NAME }} -p 8000:8000 ${{ env.DOCKER_ID }}/${{ env.DOCKER_IMAGE_NAME }}
             docker image prune -af
