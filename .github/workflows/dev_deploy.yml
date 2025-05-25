@@ -30,7 +30,7 @@ jobs:
 
       - name: Docker 이미지 빌드 및 푸시
         run: |
-          docker build -t ${{ env.DOCKER_ID }}/${{ env.DOCKER_IMAGE_NAME }} . \
+          docker build -t ${{ env.DOCKER_ID }}/${{ env.DOCKER_IMAGE_NAME }} .
           docker push ${{ env.DOCKER_ID }}/${{ env.DOCKER_IMAGE_NAME }}
 
   deploy:
