@@ -9,11 +9,10 @@ class GenerateService:
 
     @staticmethod
     async def generate(generate_request: GenerateRequest):
-        file_url = generate_request.file_url
-        quiz_count = generate_request.quiz_count
+        quiz_count = generate_request.quizCount
 
         bedrock_contents = []
-        full_text = process_file(file_url)
+        full_text = process_file(generate_request)
         summary = await create_summary(full_text)
         chunks = await create_chunks(full_text, quiz_count)
 
@@ -21,7 +20,7 @@ class GenerateService:
             bedrock_contents.append(
                 {
                     "bedrock_content": {
-                    "modelId": "anthropic.claude-sonnet-4-20250514-v1:0",
+                    "modelId": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
                     "body": {
                         "anthropic_version": "bedrock-2023-05-31",
                         "max_tokens": 20000,

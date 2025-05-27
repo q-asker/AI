@@ -1,3 +1,6 @@
+from app.util.parsing import process_file
+from app.dto.request.generate_request import GenerateRequest
+
 import requests
 import os
 from dotenv import load_dotenv
@@ -11,7 +14,7 @@ async def create_summary(text: str) -> str:
         summary = ""
         payload = {
             "bedrock_content": {
-                "modelId": "anthropic.claude-sonnet-4-20250514-v1:0",
+                "modelId": "us.anthropic.claude-sonnet-4-20250514-v1:0",
                 "body": {
                     "anthropic_version": "bedrock-2023-05-31",
                     "max_tokens": 1024,
