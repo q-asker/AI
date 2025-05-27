@@ -5,8 +5,12 @@ from pptx import Presentation
 import tempfile
 from io import BytesIO
 from app.dto.request.generate_request import GenerateRequest
+from dotenv import load_dotenv
 
-def process_file_from_cloudfront(generate_request: GenerateRequest):
+load_dotenv()
+aws_lambda_url = os.getenv("AWS_LAMBDA_URL")
+
+def process_file(generate_request: GenerateRequest):
     try:
         response = requests.get(generate_request.uploadedUrl)
         file_content = response.content
@@ -16,7 +20,7 @@ def process_file_from_cloudfront(generate_request: GenerateRequest):
             text = ""
             for page_num in range(len(pdf_document)):
                 page = pdf_document[page_num]
-                text += page.get_text() + "\n"
+                text += page.get_text() + "\n\n"
             pdf_document.close()
             return text
             
@@ -30,7 +34,7 @@ def process_file_from_cloudfront(generate_request: GenerateRequest):
             for slide in presentation.slides:
                 for shape in slide.shapes:
                     if hasattr(shape, "text"):
-                        text += shape.text + "\n"
+                        text += shape.text + "\n\n"
             
             os.unlink(temp_file_path)
             return text
@@ -38,3 +42,36 @@ def process_file_from_cloudfront(generate_request: GenerateRequest):
             raise ValueError("지원하지 않는 파일 형식입니다.")
     except Exception as e:
         raise e
+
+
+async def create_quiz(generate_request: GenerateRequest):
+    try:
+        text = process_file(generate_request)
+        summary = await create_summary(text)
+
+        quiz_count = GenerateRequest.quizCount
+        chunk_count = quiz_count // 5
+        chunks = split_text(text, chunk_count)
+
+        
+
+        return 
+    except Exception as e:
+        raise e
+
+
+async def create_summary(text: str):
+    try:
+        pass
+    except Exception as e:
+        raise e
+
+
+async def split_text(text: str, chunk_count: int):
+    try:
+        pass
+    except Exception as e:
+        raise e
+    
+
+
