@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 aws_lambda_url = os.getenv("SUMMARY_AWS_LAMBDA_URL")
-lambda_request_timeout = int(os.getenv("LAMBDA_REQUEST_TIMEOUT", 20))
 
 async def create_summary(text: str) -> str:
     try:

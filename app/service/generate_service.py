@@ -19,8 +19,7 @@ class GenerateService:
         for chunk in chunks:
             bedrock_contents.append(
                 {
-                    "bedrock_content": {
-                    "modelId": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+                    "modelId": "us.anthropic.claude-sonnet-4-20250514-v1:0",
                     "body": {
                         "anthropic_version": "bedrock-2023-05-31",
                         "max_tokens": 20000,
@@ -38,7 +37,6 @@ class GenerateService:
                             ]
                         }
                     }
-                }
             )
 
         return await request_to_bedrock(bedrock_contents)
