@@ -3,7 +3,7 @@ from app.dto.request.generate_request import GenerateRequest
 from app.util.parsing import process_file
 from app.adapter.summary_bedrock import create_summary
 from app.util.create_chunks import create_chunks
-
+from langchain_core.output_parsers import JsonOutputParser
 
 class GenerateService:
 
