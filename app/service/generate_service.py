@@ -9,7 +9,7 @@ class GenerateService:
 
     @staticmethod
     async def generate(generate_request: GenerateRequest):
-        quiz_count = generate_request.quizCount
+        quiz_count = generate_request.quiz_count
 
         bedrock_contents = []
         full_text = process_file(generate_request)

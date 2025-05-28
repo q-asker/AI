@@ -2,6 +2,6 @@ from pydantic import BaseModel
 
 
 class GenerateRequest(BaseModel):
-    uploadedUrl: str
-    quizCount: int
+    uploaded_url: str
+    quiz_count: int
     type: str
