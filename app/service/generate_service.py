@@ -52,5 +52,5 @@ class GenerateService:
                     }
                 }
             )
-        
+
         return await request_to_bedrock(bedrock_contents)

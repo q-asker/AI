@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends  # 의존성 주입: 중복 제거에 효
 
 # request, response에 대응
 from app.dto.request.generate_request import GenerateRequest
+from app.dto.response.generate_response import GenerateResponse
 from app.service.generate_service import GenerateService
 
 router = APIRouter()
@@ -14,5 +15,5 @@ def get_generate_service():
 @router.post("/generate")
 async def generate(
     request: GenerateRequest, generate_service=Depends(get_generate_service)
-):
+) -> GenerateResponse:
     return await generate_service.generate(request)
