@@ -47,7 +47,7 @@ async def request_to_bedrock(bedrock_contents):
             pubsub = await redis_util.subscribe(message_group_id)
             count = 0
             async for msg in pubsub.listen():
-                print(msg)
+                # print(msg)
                 if msg["type"] != "message":
                     continue
                 count += 1
