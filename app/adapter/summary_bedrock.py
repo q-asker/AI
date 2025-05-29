@@ -35,7 +35,6 @@ async def create_summary(text: str) -> str:
 
         response = requests.post(aws_lambda_url, json=payload)
         summary = response.json()["summary"]
-        print(summary)
         return summary
     except Exception as e:
         raise e

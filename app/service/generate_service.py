@@ -5,6 +5,7 @@ from app.util.parsing import process_file
 from app.adapter.summary_bedrock import create_summary
 from app.util.create_chunks import create_chunks
 from langchain_core.output_parsers import JsonOutputParser
+import json
 
 class GenerateService:
 
@@ -53,4 +54,7 @@ class GenerateService:
                 }
             )
         
-        return await request_to_bedrock(bedrock_contents)
+        responses = await request_to_bedrock(bedrock_contents)
+        print(type(responses[0]))
+        for response in responses:
+            print(type(json.loads(response)))
