@@ -1,6 +1,7 @@
-async def create_chunks(text: str, chunk_count: int):
+async def create_chunks(text: str, quiz_count: int):
     try:
         chunks = []
+        chunk_count = quiz_count // 5
         chunk_size = len(text) // chunk_count
         for i in range(chunk_count):
             start = i * chunk_size

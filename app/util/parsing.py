@@ -7,10 +7,10 @@ from app.dto.request.generate_request import GenerateRequest
 
 def process_file(generate_request: GenerateRequest):
     try:
-        response = requests.get(generate_request.uploaded_url)
+        response = requests.get(generate_request.file_url)
         file_content = response.content
         
-        if generate_request.uploaded_url.endswith('.pdf'):
+        if generate_request.file_url.endswith('.pdf'):
             pdf_document = fitz.open(stream=file_content, filetype="pdf")
             text = ""
             for page_num in range(len(pdf_document)):
@@ -19,7 +19,7 @@ def process_file(generate_request: GenerateRequest):
             pdf_document.close()
             return text
             
-        elif generate_request.uploaded_url.endswith('.pptx'):
+        elif generate_request.file_url.endswith('.pptx'):
             with tempfile.NamedTemporaryFile(suffix='.pptx', delete=False) as temp_file:
                 temp_file.write(file_content)
                 temp_file_path = temp_file.name

@@ -4,7 +4,7 @@ from app.dto.response.generate_response import Problem
 from app.util.parsing import process_file
 from app.adapter.summary_bedrock import create_summary
 from app.util.create_chunks import create_chunks
-from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.output_parsers import JsonOutputParser
 
 class GenerateService:
 
@@ -13,7 +13,8 @@ class GenerateService:
         quiz_count = generate_request.quiz_count
 
         # pydantic output parser 구현
-        parser = PydanticOutputParser(pydantic_object=Problem)
+        parser = JsonOutputParser(pydantic_object=Problem)
+        format_instructions = parser.get_format_instructions()
 
         bedrock_contents = []
         full_text = process_file(generate_request)
@@ -27,20 +28,29 @@ class GenerateService:
                     "body": {
                         "anthropic_version": "bedrock-2023-05-31",
                         "max_tokens": 20000,
-                        "system": "당신은 교육 전문 AI 조교입니다. 제공된 강의노트를 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈를 생성해주세요.",
+                        "system": "당신은 교육 전문 AI 조교입니다. 요약과 함께 제공된 강의노트를 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈를 5개 생성해주세요.",
                         "messages": [
                             {
                                 "role": "user",
                                 "content": [
                                     {
                                         "type": "text",
-                                        "text": summary + "\n\n" + chunk
-                                    }
-                                    ]
-                                }
-                            ]
-                        }
-                    }
-            )
+                                        "text": f"""
+                                            # FORMAT
+                                            {format_instructions}
 
+                                            # 요약
+                                            {summary}
+
+                                            # 강의노트
+                                            {chunk}
+                                        """
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            )
+        
         return await request_to_bedrock(bedrock_contents)
