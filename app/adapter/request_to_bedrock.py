@@ -13,14 +13,14 @@ load_dotenv()
 aws_region = os.getenv("AWS_REGION")
 aws_lambda_url = os.getenv("AWS_LAMBDA_URL")
 aws_sqs_url = os.getenv("AWS_SQS_URL")
-time_out = int(os.getenv("TIME_OUT", 120))
+aws_mcp_sqs_url = os.getenv("AWS_MCP_SQS_URL")
+time_out = int(os.getenv("TIME_OUT"))
 
 
 sqs = boto3.client("sqs", region_name=aws_region)
+redis_util = RedisUtil()
 
-
-async def request_to_bedrock(bedrock_contents):
-    redis_util = RedisUtil()
+async def request_to_bedrock(bedrock_contents, mcp_mode=False):
     keys = []
     quiz_count = len(bedrock_contents)
 
@@ -36,7 +36,7 @@ async def request_to_bedrock(bedrock_contents):
     await asyncio.gather(*tasks, return_exceptions=True)
 
     if os.getenv("ENV") == "local":
-        process_on_local(keys)
+        process_on_local(keys, mcp_mode)
     elif os.getenv("ENV") == "remote":
         process_on_remote(keys)
     else:
@@ -65,12 +65,12 @@ async def request_to_bedrock(bedrock_contents):
     return quizzes
 
 
-def process_on_local(keys):
-    payload = {"keys": keys}
+def process_on_local(keys, mcp_mode):
+    payload = {"keys": keys, "mcp_mode": mcp_mode}
     requests.post(aws_lambda_url, json=payload)
 
 
-def process_on_remote(keys):
+def process_on_remote(keys, mcp_mode):
     message_group_id = str(uuid4())
     for i in range(0, len(keys), 10):
         entries = []
@@ -83,7 +83,10 @@ def process_on_remote(keys):
                     "MessageGroupId": message_group_id,
                 }
             )
-        response = sqs.send_message_batch(QueueUrl=aws_sqs_url, Entries=entries)
+        if mcp_mode:
+            response = sqs.send_message_batch(QueueUrl=aws_mcp_sqs_url, Entries=entries)
+        else:
+            response = sqs.send_message_batch(QueueUrl=aws_sqs_url, Entries=entries)
         if response.get("Failed"):
             raise Exception("Failed to send messages to SQS")
         else:
