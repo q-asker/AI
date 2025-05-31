@@ -23,7 +23,7 @@ class RedisUtil:
 
     async def save_bedrock_content(self, key, bedrock_content):
         await self.redis_client.set(
-            key, json.dumps(bedrock_content, ensure_ascii=False), ex=6000
+            key, json.dumps(bedrock_content, ensure_ascii=False), ex=600
         )
 
     async def subscribe(self, key):
