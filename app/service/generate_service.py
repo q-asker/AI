@@ -1,24 +1,28 @@
+import json
+
+from langchain_core.output_parsers import JsonOutputParser
+
 from app.adapter.request_to_bedrock import request_to_bedrock
+from app.adapter.summary_bedrock import create_summary
 from app.dto.request.generate_request import GenerateRequest
 from app.dto.response.generate_response import GenerateResponse
-from app.util.parsing import process_file
-from app.adapter.summary_bedrock import create_summary
 from app.util.create_chunks import create_chunks
-from langchain_core.output_parsers import JsonOutputParser
-import json
+from app.util.parsing import process_file
+
 
 class GenerateService:
 
     @staticmethod
     async def generate(generate_request: GenerateRequest):
-        quiz_count = generate_request.quiz_count
+        uploaded_url = generate_request.uploadedUrl
+        quiz_count = generate_request.quizCount
 
         # pydantic output parser 구현
         parser = JsonOutputParser(pydantic_object=GenerateResponse)
         format_instructions = parser.get_format_instructions()
 
         bedrock_contents = []
-        full_text = process_file(generate_request)
+        full_text = process_file(uploaded_url)
         summary = await create_summary(full_text)
         chunks = await create_chunks(full_text, quiz_count)
 
