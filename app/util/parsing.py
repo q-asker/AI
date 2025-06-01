@@ -1,16 +1,17 @@
 import os
-import requests
-import fitz  # PyMuPDF
-from pptx import Presentation
 import tempfile
-from app.dto.request.generate_request import GenerateRequest
 
-def process_file(generate_request: GenerateRequest):
+import fitz  # PyMuPDF
+import requests
+from pptx import Presentation
+
+
+def process_file(uploaded_url: str) -> str:
     try:
-        response = requests.get(generate_request.file_url)
+        response = requests.get(uploaded_url)
         file_content = response.content
         
-        if generate_request.file_url.endswith('.pdf'):
+        if uploaded_url.endswith('.pdf'):
             pdf_document = fitz.open(stream=file_content, filetype="pdf")
             text = ""
             for page_num in range(len(pdf_document)):
@@ -19,7 +20,7 @@ def process_file(generate_request: GenerateRequest):
             pdf_document.close()
             return text
             
-        elif generate_request.file_url.endswith('.pptx'):
+        elif uploaded_url.endswith('.pptx'):
             with tempfile.NamedTemporaryFile(suffix='.pptx', delete=False) as temp_file:
                 temp_file.write(file_content)
                 temp_file_path = temp_file.name
