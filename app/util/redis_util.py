@@ -28,5 +28,5 @@ class RedisUtil:
 
     async def subscribe(self, key):
         pubsub = self.redis_client.pubsub()
-        await pubsub.subscribe(f"notify:{key}")
+        await pubsub.subscribe(key)
         return pubsub

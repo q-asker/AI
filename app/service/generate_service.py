@@ -8,6 +8,7 @@ from app.adapter.summary_bedrock import create_summary
 from app.dto.request.generate_request import GenerateRequest
 from app.dto.response.generate_response import GenerateResponse
 from app.util.create_chunks import create_chunks
+from app.util.logger import logger
 from app.util.parsing import process_file
 
 
@@ -74,7 +75,7 @@ class GenerateService:
         responses = await request_to_bedrock(bedrock_contents)
         end = time.time()
         elapsed = end - start
-        print(
+        logger.info(
             f"청크 당 퀴즈 카운트 {quiz_count_per_chunk}개 일 때 소요 시간: {elapsed:.4f}초"
         )
 
@@ -88,6 +89,6 @@ class GenerateService:
             quiz["number"] = i + 1
 
         for quiz in all_quizzes:
-            print(quiz)
+            logger.log(quiz)
 
         return GenerateResponse(quiz=all_quizzes)
