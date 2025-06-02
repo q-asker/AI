@@ -6,6 +6,7 @@ import boto3
 import requests
 from dotenv import load_dotenv
 
+from app.util.logger import logger
 from app.util.redis_util import RedisUtil
 
 load_dotenv()
@@ -17,14 +18,15 @@ time_out = int(os.getenv("TIME_OUT", 120))
 
 sqs = boto3.client("sqs", region_name=aws_region)
 
+
 async def request_to_bedrock(bedrock_contents):
     redis_util = RedisUtil()
-    message_group_id = str(uuid4())
-
     keys = []
     quiz_count = len(bedrock_contents)
+
+    baseKey = str(uuid4())
     for i in range(quiz_count):
-        key = "prompt:" + message_group_id + ":" + str(i)
+        key = "prompt:" + baseKey + ":" + str(i)
         keys.append(key)
 
     tasks = []
@@ -34,44 +36,45 @@ async def request_to_bedrock(bedrock_contents):
     await asyncio.gather(*tasks, return_exceptions=True)
 
     if os.getenv("ENV") == "local":
-        process_on_local(message_group_id, keys)
+        process_on_local(keys)
     elif os.getenv("ENV") == "remote":
-        process_on_remote(message_group_id, keys)
+        process_on_remote(keys)
     else:
         raise ValueError("ENV must be either 'local' or 'remote'")
 
-
     quizzes = []
+    subscribe_key = "notify:" + baseKey
     try:
         async with asyncio.timeout(time_out):
-            pubsub = await redis_util.subscribe(message_group_id)
+            pubsub = await redis_util.subscribe(subscribe_key)
             count = 0
             async for msg in pubsub.listen():
-                print(msg)
+                logger.info(f"Received message: {msg}")
                 if msg["type"] != "message":
                     continue
                 count += 1
                 quizzes.append(msg["data"])
                 if count >= quiz_count:
-                    await pubsub.unsubscribe(f"notify:{message_group_id}")
+                    await pubsub.unsubscribe(subscribe_key)
                     break
 
     except asyncio.TimeoutError:
-        await pubsub.unsubscribe(f"notify:{message_group_id}")
+        await pubsub.unsubscribe(subscribe_key)
         raise TimeoutError
 
     return quizzes
 
 
-def process_on_local(message_group_id, keys):
-    payload = {"message_group_id": message_group_id, "keys": keys}
+def process_on_local(keys):
+    payload = {"keys": keys}
     requests.post(aws_lambda_url, json=payload)
 
 
-def process_on_remote(message_group_id, keys):
+def process_on_remote(keys):
     for i in range(0, len(keys), 10):
         entries = []
         batch = keys[i : i + 10]
+        message_group_id = str(uuid4())
         for j, key in enumerate(batch):
             entries.append(
                 {
@@ -82,7 +85,6 @@ def process_on_remote(message_group_id, keys):
             )
         response = sqs.send_message_batch(QueueUrl=aws_sqs_url, Entries=entries)
         if response.get("Failed"):
-            print("Failed to send:", response["Failed"])
             raise Exception("Failed to send messages to SQS")
         else:
-            print(f"Batch of {len(entries)} messages sent.")
+            logger.info(f"Batch of {len(entries)} messages sent successfully.")
