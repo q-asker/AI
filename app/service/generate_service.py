@@ -89,6 +89,6 @@ class GenerateService:
             quiz["number"] = i + 1
 
         for quiz in all_quizzes:
-            logger.log(quiz)
+            logger.info(quiz)
 
         return GenerateResponse(quiz=all_quizzes)
