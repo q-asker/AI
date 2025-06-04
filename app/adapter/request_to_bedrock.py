@@ -71,10 +71,10 @@ def process_on_local(keys):
 
 
 def process_on_remote(keys):
+    message_group_id = str(uuid4())
     for i in range(0, len(keys), 10):
         entries = []
         batch = keys[i : i + 10]
-        message_group_id = str(uuid4())
         for j, key in enumerate(batch):
             entries.append(
                 {
