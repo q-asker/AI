@@ -60,7 +60,7 @@ def compress_chunks(max_chunk_count: int, chunks: List[ChunkInfo]) -> List[Chunk
             idx += 1
             merged_chunk.quiz_count += chunk.quiz_count
 
-        merged_chunk.referenced_pages = list(index_set)
+        merged_chunk.referenced_pages = list(sorted(index_set))
         compressed_chunks.append(merged_chunk)
 
     return compressed_chunks
@@ -135,13 +135,11 @@ def handle_quiz_larger_than_total_page(
     quiz_counts = [0] * (page_count + 1)
 
     for k in range(total_quiz_count):
-        # floor(k * (P/Q)) + 1 을 1-based 페이지 번호로 사용
         page_idx = math.floor(k * page_per_quiz) + 1
         if page_idx > page_count:
             page_idx = page_count
         quiz_counts[page_idx] += 1
 
-    # 이제 i = 1 ~ P 에 대해 ChunkInfo 생성
     for i in range(1, page_count + 1):
         chunk_info = ChunkInfo(
             text=pages[i],

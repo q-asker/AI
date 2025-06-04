@@ -1,11 +1,16 @@
 import json
 import time
+from typing import List
 
 from langchain_core.output_parsers import JsonOutputParser
 
 from app.adapter.request_to_bedrock import request_to_bedrock
+from app.dto.model.problem_set import ProblemSet
 from app.dto.request.generate_request import GenerateRequest
-from app.dto.response.generate_response import GenerateResponse
+from app.dto.response.generate_response import (
+    GenerateResponse,
+    ProblemResponse,
+)
 from app.util.create_chunks import create_chunks
 from app.util.logger import logger
 from app.util.parsing import process_file
@@ -26,7 +31,7 @@ class GenerateService:
             texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
         )
 
-        parser = JsonOutputParser(pydantic_object=GenerateResponse)
+        parser = JsonOutputParser(pydantic_object=ProblemSet)
         format_instructions = parser.get_format_instructions()
 
         bedrock_contents = []
@@ -36,8 +41,18 @@ class GenerateService:
                     "modelId": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
                     "body": {
                         "anthropic_version": "bedrock-2023-05-31",
-                        "max_tokens": 20000,
-                        "system": f"당신은 교육 전문 AI 조교입니다. 제공된 강의노트를 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈를 {chunk.quiz_count}개 생성해주세요. JSON 이외의 텍스트는 절대 출력하지 마세요.",
+                        "max_tokens": 5000,
+                        "system": f"""
+                       주어진 강의노트 내용을 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈 {chunk.quiz_count}개를 생성해주세요.
+                        응답 요구사항:
+                        - 한국어로 작성
+                        - JSON 형식으로만 출력 (다른 텍스트 포함 금지)
+                        - 강의노트의 핵심 개념을 다루는 문제
+                        - 학습 목표와 연결된 평가 문항
+                        - 객관식 문제로, 4개의 선택지 제공
+                        - 정답은 하나로 설정
+                        JSON 구조:
+                        {format_instructions}""",
                         "messages": [
                             {
                                 "role": "user",
@@ -45,12 +60,9 @@ class GenerateService:
                                     {
                                         "type": "text",
                                         "text": f"""
-                                            # FORMAT
-                                            {format_instructions}
-
-                                            # 강의노트
-                                            {chunk.text}
-                                        """,
+                                                    # 강의노트
+                                                    {chunk.text}
+                                                """,
                                     }
                                 ],
                             }
@@ -65,16 +77,35 @@ class GenerateService:
         elapsed = end - start
         logger.info(f"소요 시간: {elapsed:.4f}초")
 
-        all_quizzes = []
-        for response in responses:
-            quiz_data = json.loads(response).get("generated_text")
-            parsed_quiz = json.loads(quiz_data)
-            all_quizzes.extend(parsed_quiz.get("quiz", []))
+        sorted_responses = []
+        for i, response in enumerate(responses):
+            quiz_data = json.loads(response)
+            generated_text = parser.parse(quiz_data.get("generated_text"))
+            sorted_responses.append(
+                {
+                    "sequence": quiz_data.get("sequence"),
+                    "generated_text": generated_text,
+                }
+            )
 
-        for i, quiz in enumerate(all_quizzes):
-            quiz["number"] = i + 1
+        sorted_responses.sort(key=lambda x: x["sequence"])
 
-        for quiz in all_quizzes:
-            logger.info(quiz)
+        problem_responses: List[ProblemResponse] = []
+        for i, response in enumerate(sorted_responses):
+            quiz_data = response.get("generated_text")
+            quiz = quiz_data.get("quiz")
+            for problem in quiz:
+                problem_responses.append(
+                    ProblemResponse(
+                        **problem, referencedPages=chunks[i].referenced_pages
+                    )
+                )
 
-        return GenerateResponse(quiz=all_quizzes)
+        for i, problem in enumerate(problem_responses):
+            problem.number = i + 1
+
+        for problem in problem_responses:
+            logger.info(problem)
+
+        generation_response = GenerateResponse(quiz=problem_responses)
+        return generation_response
