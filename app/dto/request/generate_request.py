@@ -7,8 +7,9 @@ class DOKLevel(str, Enum):
     SKILLS = "SKILLS"
     STRATEGIC = "STRATEGIC"
 
+
 class GenerateRequest(BaseModel):
     uploadedUrl: str
     quizCount: int
     difficultyType: DOKLevel
-    type: str
+    quizType: str
