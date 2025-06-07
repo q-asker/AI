@@ -20,6 +20,7 @@ time_out = int(os.getenv("TIME_OUT"))
 sqs = boto3.client("sqs", region_name=aws_region)
 redis_util = RedisUtil()
 
+
 async def request_to_bedrock(bedrock_contents, mcp_mode=False):
     keys = []
     quiz_count = len(bedrock_contents)
@@ -38,7 +39,7 @@ async def request_to_bedrock(bedrock_contents, mcp_mode=False):
     if os.getenv("ENV") == "local":
         process_on_local(keys, mcp_mode)
     elif os.getenv("ENV") == "remote":
-        process_on_remote(keys)
+        process_on_remote(keys, mcp_mode)
     else:
         raise ValueError("ENV must be either 'local' or 'remote'")
 
@@ -71,7 +72,7 @@ def process_on_local(keys, mcp_mode):
 
 
 def process_on_remote(keys, mcp_mode):
-    message_group_id = str(uuid4())
+    message_group_id = keys[0].split(":")[1]
     for i in range(0, len(keys), 10):
         entries = []
         batch = keys[i : i + 10]
