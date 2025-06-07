@@ -63,8 +63,6 @@ class GenerateService:
         selected_page_numbers = generate_request.selectedPages
 
         texts = process_file(uploaded_url, page_selected, selected_page_numbers)
-        for text in enumerate(texts):
-            print(text)
 
         minimum_page_text_length_per_chunk = 500
         max_chunk_count = 10
