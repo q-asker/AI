@@ -14,4 +14,5 @@ class GenerateRequest(BaseModel):
     quizCount: int
     difficultyType: DOKLevel
     quizType: str
+    pageSelected: bool
     selectedPages: list[int]
