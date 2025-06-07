@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from enum import Enum
+
+from pydantic import BaseModel
 
 
 class DOKLevel(str, Enum):
@@ -13,3 +14,4 @@ class GenerateRequest(BaseModel):
     quizCount: int
     difficultyType: DOKLevel
     quizType: str
+    selectedPages: list[int]

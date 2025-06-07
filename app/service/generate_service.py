@@ -59,8 +59,9 @@ class GenerateService:
         uploaded_url = generate_request.uploadedUrl
         total_quiz_count = generate_request.quizCount
         dok_level = generate_request.difficultyType
+        selected_pages = generate_request.selectedPages
 
-        texts = process_file(uploaded_url)
+        texts = process_file(uploaded_url, selected_pages)
 
         minimum_page_text_length_per_chunk = 500
         max_chunk_count = 10

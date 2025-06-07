@@ -7,7 +7,7 @@ import requests
 from pptx import Presentation
 
 
-def process_file(uploaded_url: str) -> List[str]:
+def process_file(uploaded_url: str, selected_pages: List[int]) -> List[str]:
     try:
         response = requests.get(uploaded_url)
         file_content = response.content
@@ -15,10 +15,12 @@ def process_file(uploaded_url: str) -> List[str]:
         if uploaded_url.endswith(".pdf"):
             pdf_documents = fitz.open(stream=file_content, filetype="pdf")
             pages = []
+            pages
             for pdf_document in pdf_documents:
                 pages.append(pdf_document.get_text())
 
             pdf_documents.close()
+
             return pages
 
         elif uploaded_url.endswith(".pptx"):
