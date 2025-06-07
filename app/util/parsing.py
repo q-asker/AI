@@ -37,7 +37,7 @@ def process_file(
                 temp_file_path = temp_file.name
 
             presentation = Presentation(temp_file_path)
-            one_based_pages = []
+            one_based_pages = [""]
             for slide in presentation.slides:
                 slide_text = ""
                 for shape in slide.shapes:
@@ -46,7 +46,15 @@ def process_file(
                 one_based_pages.append(slide_text)
 
             os.unlink(temp_file_path)
-            return one_based_pages
+
+            if not page_selected:
+                return one_based_pages
+
+            select_pages = [""]
+            for i, page in enumerate(one_based_pages):
+                if i in selected_page_numbers:
+                    select_pages.append(page)
+            return select_pages
         else:
             raise ValueError("지원하지 않는 파일 형식입니다.")
     except Exception as e:
