@@ -17,21 +17,18 @@ def create_chunks(
     max_chunk_count: int,
 ) -> List[ChunkInfo]:
 
-    one_based_pages = [""] + pages
     page_count = len(pages)
 
     if total_quiz_count < page_count:
-        chunks = handle_quiz_smaller_than_total_page(total_quiz_count, one_based_pages)
+        chunks = handle_quiz_smaller_than_total_page(total_quiz_count, pages)
 
     elif total_quiz_count > page_count:
-        chunks = handle_quiz_larger_than_total_page(total_quiz_count, one_based_pages)
+        chunks = handle_quiz_larger_than_total_page(total_quiz_count, pages)
 
     else:
-        chunks = handle_quiz_same_as_total_page(total_quiz_count, one_based_pages)
+        chunks = handle_quiz_same_as_total_page(total_quiz_count, pages)
 
-    chunks = add_prefix_suffix(
-        chunks, one_based_pages, minimum_page_text_length_per_chunk
-    )
+    chunks = add_prefix_suffix(chunks, pages, minimum_page_text_length_per_chunk)
 
     chunks = compress_chunks(max_chunk_count, chunks)
     return chunks
