@@ -59,15 +59,24 @@ class GenerateService:
         uploaded_url = generate_request.uploadedUrl
         total_quiz_count = generate_request.quizCount
         dok_level = generate_request.difficultyType
-        selected_pages = generate_request.selectedPages
+        page_selected = generate_request.pageSelected
+        selected_page_numbers = generate_request.selectedPages
 
-        texts = process_file(uploaded_url, selected_pages)
+        texts = process_file(uploaded_url, page_selected, selected_page_numbers)
+        for text in enumerate(texts):
+            print(text)
 
         minimum_page_text_length_per_chunk = 500
         max_chunk_count = 10
         chunks = create_chunks(
             texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
         )
+
+        page_offset = selected_page_numbers[0] - 1
+        if page_selected:
+            for chunk in chunks:
+                for i in range(len(chunk.referenced_pages)):
+                    chunk.referenced_pages[i] = chunk.referenced_pages[i] + page_offset
 
         parser = JsonOutputParser(pydantic_object=ProblemSet)
         format_instructions = parser.get_format_instructions()
