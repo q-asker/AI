@@ -73,7 +73,11 @@ class GenerateService:
             texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
         )
 
-        page_offset = start_page_number - 1
+        if page_selected:
+            page_offset = start_page_number - 1
+        else:
+            page_offset = 0
+
         if page_selected:
             for chunk in chunks:
                 for i in range(len(chunk.referenced_pages)):
