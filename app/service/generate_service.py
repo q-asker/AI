@@ -75,10 +75,6 @@ class GenerateService:
 
         if page_selected:
             page_offset = start_page_number - 1
-        else:
-            page_offset = 0
-
-        if page_selected:
             for chunk in chunks:
                 for i in range(len(chunk.referenced_pages)):
                     chunk.referenced_pages[i] = chunk.referenced_pages[i] + page_offset
