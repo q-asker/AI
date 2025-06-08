@@ -6,9 +6,11 @@ import fitz  # PyMuPDF
 import requests
 from pptx import Presentation
 
+max_page_count = 100
+
 
 def process_file(
-    uploaded_url: str, page_selected: bool, selected_page_numbers: List[int]
+    uploaded_url: str, page_selected: bool, start_page_number: int, end_page_number: int
 ) -> List[str]:
     try:
         response = requests.get(uploaded_url)
@@ -17,6 +19,8 @@ def process_file(
         if uploaded_url.endswith(".pdf"):
             pdf_documents = fitz.open(stream=file_content, filetype="pdf")
             one_based_pages = [""]
+            if max_page_count < len(pdf_documents):
+                raise ValueError(f"페이지 수가 {max_page_count}페이지를 초과합니다.")
             for pdf_document in pdf_documents:
                 one_based_pages.append(pdf_document.get_text())
 
@@ -27,7 +31,9 @@ def process_file(
 
             select_pages = [""]
             for i, page in enumerate(one_based_pages):
-                if i in selected_page_numbers:
+                if end_page_number < i:
+                    break
+                if start_page_number <= i:
                     select_pages.append(page)
             return select_pages
 
@@ -37,6 +43,9 @@ def process_file(
                 temp_file_path = temp_file.name
 
             presentation = Presentation(temp_file_path)
+            if max_page_count < len(presentation.slides):
+                raise ValueError(f"페이지 수가 {max_page_count}페이지를 초과합니다.")
+
             one_based_pages = [""]
             for slide in presentation.slides:
                 slide_text = ""
@@ -52,7 +61,9 @@ def process_file(
 
             select_pages = [""]
             for i, page in enumerate(one_based_pages):
-                if i in selected_page_numbers:
+                if end_page_number < i:
+                    break
+                if start_page_number <= i:
                     select_pages.append(page)
             return select_pages
         else:
