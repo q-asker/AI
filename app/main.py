@@ -12,14 +12,12 @@ app.include_router(generate_router)
 
 @app.exception_handler(Exception)
 async def exception_handler(request: Request, exc: Exception):
-    logger.error(exc)
+    logger.exception(exc)
+    message = str(exc)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "success": False,
-            "error": {
-                "type": exc.__class__.__name__,
-                "detail": "서버 내부 오류가 발생했습니다.",
-            },
+            "type": exc.__class__.__name__,
+            "detail": message,
         },
     )
