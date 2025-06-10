@@ -101,7 +101,7 @@ class GenerateService:
                         - 강의노트의 핵심 개념을 다루는 문제
                         - 학습 목표와 연결된 평가 문항
                         - 객관식 문제로, 4개의 선택지 제공
-                        - 정답은 하나로 설정
+                        - 정답은 하나로 설정, 1~4번 중 무작위로 배치
                         JSON 구조:
                         {format_instructions}""",
                         "messages": [
