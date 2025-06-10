@@ -9,6 +9,25 @@ from pptx import Presentation
 max_page_count = 100
 
 
+def handle_page_selected(start_page_number, end_page_number, one_based_pages):
+    if end_page_number - start_page_number > max_page_count:
+        raise ValueError(f"선택된 페이지 수가 {max_page_count}페이지를 초과합니다.")
+
+    select_pages = [""]
+    for i, page in enumerate(one_based_pages):
+        if end_page_number < i:
+            break
+        if start_page_number <= i:
+            select_pages.append(page)
+    return select_pages
+
+
+def handle_page_not_selected(one_based_pages):
+    if len(one_based_pages) > max_page_count:
+        raise ValueError(f"페이지 수가 {max_page_count}페이지를 초과합니다.")
+    return one_based_pages
+
+
 def process_file(
     uploaded_url: str, page_selected: bool, start_page_number: int, end_page_number: int
 ) -> List[str]:
@@ -18,33 +37,25 @@ def process_file(
 
         if uploaded_url.endswith(".pdf"):
             pdf_documents = fitz.open(stream=file_content, filetype="pdf")
+            pdf_documents.close()
+
             one_based_pages = [""]
-            if max_page_count < len(pdf_documents):
-                raise ValueError(f"페이지 수가 {max_page_count}페이지를 초과합니다.")
             for pdf_document in pdf_documents:
                 one_based_pages.append(pdf_document.get_text())
 
-            pdf_documents.close()
+            if page_selected:
+                return handle_page_selected(
+                    start_page_number, end_page_number, one_based_pages
+                )
 
-            if not page_selected:
-                return one_based_pages
-
-            select_pages = [""]
-            for i, page in enumerate(one_based_pages):
-                if end_page_number < i:
-                    break
-                if start_page_number <= i:
-                    select_pages.append(page)
-            return select_pages
+            return handle_page_not_selected(one_based_pages)
 
         elif uploaded_url.endswith(".pptx"):
             with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as temp_file:
                 temp_file.write(file_content)
                 temp_file_path = temp_file.name
-
             presentation = Presentation(temp_file_path)
-            if max_page_count < len(presentation.slides):
-                raise ValueError(f"페이지 수가 {max_page_count}페이지를 초과합니다.")
+            os.unlink(temp_file_path)
 
             one_based_pages = [""]
             for slide in presentation.slides:
@@ -54,19 +65,15 @@ def process_file(
                         slide_text += shape.text + "\n\n"
                 one_based_pages.append(slide_text)
 
-            os.unlink(temp_file_path)
+            if page_selected:
+                return handle_page_selected(
+                    start_page_number, end_page_number, one_based_pages
+                )
 
-            if not page_selected:
-                return one_based_pages
+            return handle_page_not_selected(one_based_pages)
 
-            select_pages = [""]
-            for i, page in enumerate(one_based_pages):
-                if end_page_number < i:
-                    break
-                if start_page_number <= i:
-                    select_pages.append(page)
-            return select_pages
         else:
             raise ValueError("지원하지 않는 파일 형식입니다.")
+
     except Exception as e:
         raise e
