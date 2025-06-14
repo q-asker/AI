@@ -68,7 +68,7 @@ class GenerateService:
         )
 
         minimum_page_text_length_per_chunk = 500
-        max_chunk_count = 10
+        max_chunk_count = 30
         chunks = create_chunks(
             texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
         )
