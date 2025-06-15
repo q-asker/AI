@@ -1,11 +1,14 @@
 import asyncio
+import json
 import os
+from typing import List
 from uuid import uuid4
 
 import boto3
-import requests
+import httpx
 from dotenv import load_dotenv
 
+from app.dto.model.generated_result import GeneratedResult
 from app.util.logger import logger
 from app.util.redis_util import RedisUtil
 
@@ -37,25 +40,41 @@ async def request_to_bedrock(bedrock_contents, mcp_mode=False):
     await asyncio.gather(*tasks, return_exceptions=True)
 
     if os.getenv("ENV") == "local":
-        process_on_local(keys, mcp_mode)
+        await process_on_local(keys, mcp_mode)
     elif os.getenv("ENV") == "remote":
-        process_on_remote(keys, mcp_mode)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, process_on_remote, keys, mcp_mode)
     else:
         raise ValueError("ENV must be either 'local' or 'remote'")
 
+    return await collect_quizzes(baseKey, quiz_count)
+
+
+async def collect_quizzes(baseKey, quiz_count) -> List[GeneratedResult]:
+    seen_sequences = set()
     quizzes = []
     subscribe_key = "notify:" + baseKey
     try:
         async with asyncio.timeout(time_out):
             pubsub = await redis_util.subscribe(subscribe_key)
-            count = 0
             async for msg in pubsub.listen():
                 logger.info(f"Received message: {msg}")
                 if msg["type"] != "message":
                     continue
-                count += 1
-                quizzes.append(msg["data"])
-                if count >= quiz_count:
+                response = msg["data"]
+                response_json = json.loads(response)
+                sequence = response_json.get("sequence")
+                if sequence in seen_sequences:
+                    logger.warning(f"Duplicate sequence detected: {sequence}")
+                    continue
+
+                seen_sequences.add(sequence)
+                quizzes.append(
+                    GeneratedResult(
+                        **response_json,
+                    )
+                )
+                if len(quizzes) >= quiz_count:
                     await pubsub.unsubscribe(subscribe_key)
                     break
 
@@ -63,12 +82,21 @@ async def request_to_bedrock(bedrock_contents, mcp_mode=False):
         await pubsub.unsubscribe(subscribe_key)
         raise TimeoutError
 
+    except Exception as e:
+        raise e
+
     return quizzes
 
 
-def process_on_local(keys, mcp_mode):
+async def process_on_local(keys, mcp_mode):
     payload = {"keys": keys, "mcp_mode": mcp_mode}
-    requests.post(aws_lambda_url, json=payload)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(aws_lambda_url, json=payload)
+        try:
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            logger.error(f"Lambda 호출 실패: {exc}")
+            raise exc
 
 
 def process_on_remote(keys, mcp_mode):

@@ -30,3 +30,10 @@ class RedisUtil:
         pubsub = self.redis_client.pubsub()
         await pubsub.subscribe(key)
         return pubsub
+
+    async def get_count(self, key):
+        count = await self.redis_client.zcard(key)
+        return count
+
+    async def pipeline(self):
+        return self.redis_client.pipeline()
