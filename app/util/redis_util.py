@@ -34,10 +34,6 @@ class RedisUtil:
         await pubsub.subscribe(key)
         return pubsub
 
-    async def get_count(self, key):
-        count = await self.redis_client.zcard(key)
-        return count
-
     async def check_bedrock_rate(self, generate_count: int, key: str):
         WINDOW = 60
         LIMIT = 75
