@@ -17,7 +17,6 @@ from app.util.logger import logger
 from app.util.parsing import process_file
 from app.util.redis_util import RedisUtil
 
-REQUEST_LIMIT_PER_MINUTE = 75
 redis_util = RedisUtil()
 
 
@@ -51,6 +50,8 @@ class GenerateService:
             }
         ]
 
+        await redis_util.check_bedrock_rate(len(bedrock_contents), "rl:bedrock:global")
+
         start = time.time()
         generated_result = await request_to_bedrock(bedrock_contents, mcp_mode=True)
         end = time.time()
@@ -76,6 +77,8 @@ class GenerateService:
         chunks = create_chunks(
             texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
         )
+
+        await redis_util.check_bedrock_rate(len(chunks), "rl:bedrock:global")
 
         if page_selected:
             page_offset = start_page_number - 1
@@ -162,9 +165,6 @@ class GenerateService:
 
         for i, problem in enumerate(problem_responses):
             problem.number = i + 1
-
-        for problem in problem_responses:
-            logger.info(problem)
 
         return GenerateResponse(quiz=problem_responses)
 
