@@ -102,21 +102,32 @@ async def process_on_local(keys, mcp_mode):
 def process_on_remote(keys, mcp_mode):
     message_group_id = keys[0].split(":")[1]
     for i in range(0, len(keys), 10):
-        entries = []
-        batch = keys[i : i + 10]
-        for j, key in enumerate(batch):
-            entries.append(
-                {
-                    "Id": str(j),
-                    "MessageBody": key,
-                    "MessageGroupId": message_group_id,
-                }
-            )
         if mcp_mode:
+            entries = []
+            batch = keys[i : i + 10]
+            for j, key in enumerate(batch):
+                entries.append(
+                    {
+                        "Id": str(j),
+                        "MessageBody": key,
+                        "MessageGroupId": message_group_id,
+                    }
+                )
             response = sqs.send_message_batch(QueueUrl=aws_mcp_sqs_url, Entries=entries)
+
         else:
+            entries = []
+            batch = keys[i : i + 10]
+            for j, key in enumerate(batch):
+                entries.append(
+                    {
+                        "Id": str(j),
+                        "MessageBody": key,
+                    }
+                )
             response = sqs.send_message_batch(QueueUrl=aws_sqs_url, Entries=entries)
+
         if response.get("Failed"):
             raise Exception("Failed to send messages to SQS")
         else:
-            logger.info(f"Batch of {len(entries)} messages sent successfully.")
+            logger.info(f"Batch of {len(entries)} messages sent.")
