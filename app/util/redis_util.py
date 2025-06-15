@@ -44,7 +44,9 @@ class RedisUtil:
         lock = self.redis_client.lock(f"lock:{key}", timeout=WINDOW)
         async with lock:
             pipe = await self.redis_client.pipeline()
+            # 윈도우 밖의 오래된 항목 제거
             pipe.zremrangebyscore(key, 0, window_start)
+            # 현재 윈도우 내 항목 수 조회
             pipe.zcard(key)
             removed, count = await pipe.execute()
 
@@ -54,10 +56,10 @@ class RedisUtil:
                     detail="요청이 많습니다. 잠시 후 다시 시도해주세요.",
                 )
 
+            now = time.time()
+            mapping = {f"{now}-{uuid.uuid4()}": now for _ in range(generate_count)}
+
             pipe = await self.redis_client.pipeline()
-            for _ in range(generate_count):
-                member = f"{now}-{uuid.uuid4()}"
-                pipe.zadd(key, {member: now})
-            # 윈도우 TTL 갱신
+            pipe.zadd(key, mapping)
             pipe.expire(key, WINDOW)
             await pipe.execute()
