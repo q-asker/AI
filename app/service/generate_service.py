@@ -64,12 +64,10 @@ class GenerateService:
         uploaded_url = generate_request.uploadedUrl
         total_quiz_count = generate_request.quizCount
         dok_level = generate_request.difficultyType
-        page_selected = generate_request.pageSelected
-        start_page_number = generate_request.startPageNumber
-        end_page_number = generate_request.endPageNumber
+        page_numbers = generate_request.pageNumbers
 
         texts = process_file(
-            uploaded_url, page_selected, start_page_number, end_page_number
+            uploaded_url, page_numbers
         )
 
         minimum_page_text_length_per_chunk = 500
@@ -79,12 +77,15 @@ class GenerateService:
         )
 
         await redis_util.check_bedrock_rate(len(chunks), "rl:bedrock:global")
+        print(f"generate_request's page_numbers: {generate_request.pageNumbers}")
 
-        if page_selected:
-            page_offset = start_page_number - 1
-            for chunk in chunks:
-                for i in range(len(chunk.referenced_pages)):
-                    chunk.referenced_pages[i] = chunk.referenced_pages[i] + page_offset
+        for chunk in chunks:
+            chunk.referenced_pages = [
+                page_numbers[i - 1]
+                for i in chunk.referenced_pages
+                if 1 <= i <= len(page_numbers)
+            ]
+            print(f"chunk's referenced_pages: {chunk.referenced_pages}")
 
         parser = JsonOutputParser(pydantic_object=ProblemSet)
         format_instructions = parser.get_format_instructions()
