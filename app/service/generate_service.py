@@ -77,7 +77,6 @@ class GenerateService:
         )
 
         await redis_util.check_bedrock_rate(len(chunks), "rl:bedrock:global")
-        print(f"generate_request's page_numbers: {generate_request.pageNumbers}")
 
         for chunk in chunks:
             chunk.referenced_pages = [
@@ -85,7 +84,6 @@ class GenerateService:
                 for i in chunk.referenced_pages
                 if 1 <= i <= len(page_numbers)
             ]
-            print(f"chunk's referenced_pages: {chunk.referenced_pages}")
 
         parser = JsonOutputParser(pydantic_object=ProblemSet)
         format_instructions = parser.get_format_instructions()
