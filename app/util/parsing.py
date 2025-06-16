@@ -10,7 +10,7 @@ max_page_count = 100
 
 
 def process_file(
-    uploaded_url: str, page_selected: bool, start_page_number: int, end_page_number: int
+    uploaded_url: str, page_numbers: List[int]
 ) -> List[str]:
     try:
         response = requests.get(uploaded_url)
@@ -18,24 +18,20 @@ def process_file(
 
         if uploaded_url.endswith(".pdf"):
             pdf_documents = fitz.open(stream=file_content, filetype="pdf")
-            one_based_pages = [""]
+
             if max_page_count < len(pdf_documents):
                 raise ValueError(f"페이지 수가 {max_page_count}페이지를 초과합니다.")
+
+            one_based_pages = [""]
             for pdf_document in pdf_documents:
                 one_based_pages.append(pdf_document.get_text())
-
             pdf_documents.close()
 
-            if not page_selected:
+            if not page_numbers:
                 return one_based_pages
 
-            select_pages = [""]
-            for i, page in enumerate(one_based_pages):
-                if end_page_number < i:
-                    break
-                if start_page_number <= i:
-                    select_pages.append(page)
-            return select_pages
+            select_pages = [one_based_pages[i] for i in page_numbers if 0 < i < len(one_based_pages)]
+            return [""] + select_pages
 
         elif uploaded_url.endswith(".pptx"):
             with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as temp_file:
@@ -56,16 +52,11 @@ def process_file(
 
             os.unlink(temp_file_path)
 
-            if not page_selected:
+            if not page_numbers:
                 return one_based_pages
 
-            select_pages = [""]
-            for i, page in enumerate(one_based_pages):
-                if end_page_number < i:
-                    break
-                if start_page_number <= i:
-                    select_pages.append(page)
-            return select_pages
+            select_pages = [one_based_pages[i] for i in page_numbers if 0 < i < len(one_based_pages)]
+            return [""] + select_pages
         else:
             raise ValueError("지원하지 않는 파일 형식입니다.")
     except Exception as e:

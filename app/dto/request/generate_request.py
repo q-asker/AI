@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel
 
@@ -15,6 +15,4 @@ class GenerateRequest(BaseModel):
     quizCount: int
     difficultyType: DOKLevel
     quizType: str
-    pageSelected: bool
-    startPageNumber: Optional[int]
-    endPageNumber: Optional[int]
+    pageNumbers: List[int]
