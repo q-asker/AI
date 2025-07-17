@@ -10,9 +10,14 @@ class DOKLevel(str, Enum):
     STRATEGIC = "STRATEGIC"
 
 
+class QuizType(str, Enum):
+    OX = "OX"
+    MULTIPLE = "MULTIPLE"
+
+
 class GenerateRequest(BaseModel):
     uploadedUrl: str
     quizCount: int
     difficultyType: DOKLevel
-    quizType: str
+    quizType: QuizType
     pageNumbers: List[int]
