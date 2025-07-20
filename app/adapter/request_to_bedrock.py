@@ -37,13 +37,14 @@ async def request_to_bedrock(bedrock_contents, mcp_mode=False):
     for i, bedrock_content in enumerate(bedrock_contents):
         key = keys[i]
         tasks.append(redis_util.save_bedrock_content(key, bedrock_content))
-    await asyncio.gather(*tasks, return_exceptions=True)
+    await asyncio.gather(*tasks, return_exceptions=True) # Redis에 요청 내용 저장
+
 
     if os.getenv("ENV") == "local":
         await process_on_local(keys, mcp_mode)
     elif os.getenv("ENV") == "remote":
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, process_on_remote, keys, mcp_mode)
+        await loop.run_in_executor(None, process_on_remote, keys, mcp_mode) # SQS 사용
     else:
         raise ValueError("ENV must be either 'local' or 'remote'")
 
@@ -56,8 +57,8 @@ async def collect_quizzes(baseKey, quiz_count) -> List[GeneratedResult]:
     subscribe_key = "notify:" + baseKey
     try:
         async with asyncio.timeout(time_out):
-            pubsub = await redis_util.subscribe(subscribe_key)
-            async for msg in pubsub.listen():
+            pubsub = await redis_util.subscribe(subscribe_key) # 해당 baseKey 채널 구독, 결과 메세지 수신
+            async for msg in pubsub.listen(): # 메세지 sqs에 저장 이후 수행
                 logger.info(f"Received message: {msg}")
                 if msg["type"] != "message":
                     continue
@@ -99,7 +100,7 @@ async def process_on_local(keys, mcp_mode):
             raise exc
 
 
-def process_on_remote(keys, mcp_mode):
+def process_on_remote(keys, mcp_mode): # SQS 사용시 수행
     message_group_id = keys[0].split(":")[1]
     for i in range(0, len(keys), 10):
         if mcp_mode:
@@ -113,7 +114,7 @@ def process_on_remote(keys, mcp_mode):
                         "MessageGroupId": message_group_id,
                     }
                 )
-            response = sqs.send_message_batch(QueueUrl=aws_mcp_sqs_url, Entries=entries)
+            response = sqs.send_message_batch(QueueUrl=aws_mcp_sqs_url, Entries=entries) # mcp lambda 트리거 하기
 
         else:
             entries = []

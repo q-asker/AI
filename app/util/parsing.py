@@ -9,7 +9,9 @@ from pptx import Presentation
 max_page_count = 100
 
 
-def process_file(uploaded_url: str, page_numbers: List[int]) -> List[str]:
+def process_file(
+    uploaded_url: str, page_numbers: List[int]
+) -> List[str]:
     try:
         response = requests.get(uploaded_url)
         file_content = response.content

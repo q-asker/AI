@@ -14,15 +14,76 @@ from app.dto.response.generate_response import (
 )
 from app.prompt.quiz_dok_guideline import get_quiz_generation_guide
 from app.prompt.quiz_format import get_quiz_format
+from app.dto.response.specific_explanation_response import SpecificExplanationResponse
 from app.util.create_chunks import create_chunks
 from app.util.logger import logger
 from app.util.parsing import process_file
 from app.util.redis_util import RedisUtil
-
+from app.dto.request.specific_explanation_request import SpecificExplanationRequest
 redis_util = RedisUtil()
 
 
 class GenerateService:
+    @staticmethod
+    async def generate_specific_explanation(specific_explanation_request: SpecificExplanationRequest):
+        title = specific_explanation_request.title
+        selections = specific_explanation_request.selections
+        print(f"title: {title}")
+        selection_text = ""
+        for idx, s in enumerate(selections, start=1):
+            answer_tag = "(정답)" if s.correct else ""
+            selection_text += f"{idx}. {s.content} {answer_tag}\n"
+        print(f"selection_text: {selection_text}")
+        bedrock_contents = [
+            {
+                "modelId": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+                "body": {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 5000,
+                    "system": f"""
+                                아래는 하나의 객관식 문제와 4개의 선택지입니다. 각 선택지는 정답 여부도 함께 제공됩니다.
+                                문제를 바탕으로, 왜 해당 정답이 맞는지, 다른 선택지들은 왜 틀렸는지를 논리적으로 설명해주세요.
+                                - 왜 해당 선택지가 정답인지 설명하세요.
+                                - 나머지 선택지들은 왜 틀렸는지 설명하세요.
+                                - 형식은 단순한 서술문으로, JSON 형태로 응답하지 마세요.
+                                - 하나의 글로 말하세요.
+                                - 검색한 경우, 그 출처를 url 형식으로 밝히세요.
+                    """,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": f"""
+                                            문제: {title}
+                                            선택지:
+                                            {selection_text}
+                                            """,
+                                }
+                            ],
+                        }
+                    ],
+                },
+            }
+        ]
+
+        await redis_util.check_bedrock_rate(len(bedrock_contents), "rl:bedrock:global")
+
+        start = time.time()
+        generated_result = await request_to_bedrock(bedrock_contents, mcp_mode=True)
+        end = time.time()
+        elapsed = end - start
+        logger.info(f"소요 시간: {elapsed:.4f}초")
+        raw_text = generated_result[0].generated_text if hasattr(generated_result[0], 'generated_text') else str(
+            generated_result[0])
+        try:
+            parsed_json = json.loads(raw_text)
+            explanation_text = parsed_json.get("specific_explanation", raw_text)
+        except json.JSONDecodeError:
+            explanation_text = raw_text
+        print(f"generated_result: {generated_result}")
+        return SpecificExplanationResponse(specific_explanation=explanation_text)
 
     @staticmethod
     async def search_and_generate(search_request: SearchRequest):
