@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, List
+from typing import List
 
 from pydantic import BaseModel
 
@@ -10,9 +10,15 @@ class DOKLevel(str, Enum):
     STRATEGIC = "STRATEGIC"
 
 
+class QuizType(str, Enum):
+    OX = "OX"
+    BLANK = "BLANK"
+    MULTIPLE = "MULTIPLE"
+
+
 class GenerateRequest(BaseModel):
     uploadedUrl: str
     quizCount: int
     difficultyType: DOKLevel
-    quizType: str
+    quizType: QuizType
     pageNumbers: List[int]
