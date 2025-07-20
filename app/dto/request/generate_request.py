@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, List
+from typing import List
 
 from pydantic import BaseModel
 
@@ -12,6 +12,7 @@ class DOKLevel(str, Enum):
 
 class QuizType(str, Enum):
     OX = "OX"
+    BLANK = "BLANK"
     MULTIPLE = "MULTIPLE"
 
 

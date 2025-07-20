@@ -9,9 +9,7 @@ from pptx import Presentation
 max_page_count = 100
 
 
-def process_file(
-    uploaded_url: str, page_numbers: List[int]
-) -> List[str]:
+def process_file(uploaded_url: str, page_numbers: List[int]) -> List[str]:
     try:
         response = requests.get(uploaded_url)
         file_content = response.content
@@ -30,7 +28,9 @@ def process_file(
             if not page_numbers:
                 return one_based_pages
 
-            select_pages = [one_based_pages[i] for i in page_numbers if 0 < i < len(one_based_pages)]
+            select_pages = [
+                one_based_pages[i] for i in page_numbers if 0 < i < len(one_based_pages)
+            ]
             return [""] + select_pages
 
         elif uploaded_url.endswith(".pptx"):
@@ -55,7 +55,9 @@ def process_file(
             if not page_numbers:
                 return one_based_pages
 
-            select_pages = [one_based_pages[i] for i in page_numbers if 0 < i < len(one_based_pages)]
+            select_pages = [
+                one_based_pages[i] for i in page_numbers if 0 < i < len(one_based_pages)
+            ]
             return [""] + select_pages
         else:
             raise ValueError("지원하지 않는 파일 형식입니다.")
