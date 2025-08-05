@@ -8,24 +8,27 @@ from app.adapter.request_to_bedrock import request_to_bedrock
 from app.dto.model.problem_set import ProblemSet
 from app.dto.request.generate_request import GenerateRequest
 from app.dto.request.search_request import SearchRequest
+from app.dto.request.specific_explanation_request import SpecificExplanationRequest
 from app.dto.response.generate_response import (
     GenerateResponse,
     ProblemResponse,
 )
+from app.dto.response.specific_explanation_response import SpecificExplanationResponse
 from app.prompt.quiz_dok_guideline import get_quiz_generation_guide
 from app.prompt.quiz_format import get_quiz_format
-from app.dto.response.specific_explanation_response import SpecificExplanationResponse
 from app.util.create_chunks import create_chunks
 from app.util.logger import logger
 from app.util.parsing import process_file
 from app.util.redis_util import RedisUtil
-from app.dto.request.specific_explanation_request import SpecificExplanationRequest
+
 redis_util = RedisUtil()
 
 
 class GenerateService:
     @staticmethod
-    async def generate_specific_explanation(specific_explanation_request: SpecificExplanationRequest):
+    async def generate_specific_explanation(
+        specific_explanation_request: SpecificExplanationRequest,
+    ):
         title = specific_explanation_request.title
         selections = specific_explanation_request.selections
         print(f"title: {title}")
@@ -75,8 +78,11 @@ class GenerateService:
         end = time.time()
         elapsed = end - start
         logger.info(f"소요 시간: {elapsed:.4f}초")
-        raw_text = generated_result[0].generated_text if hasattr(generated_result[0], 'generated_text') else str(
-            generated_result[0])
+        raw_text = (
+            generated_result[0].generated_text
+            if hasattr(generated_result[0], "generated_text")
+            else str(generated_result[0])
+        )
         try:
             parsed_json = json.loads(raw_text)
             explanation_text = parsed_json.get("specific_explanation", raw_text)
@@ -168,6 +174,7 @@ class GenerateService:
                         - JSON 형식으로만 출력 (다른 텍스트 포함 금지)
                         - 강의노트의 핵심 개념을 다루는 문제
                         - 학습 목표와 연결된 평가 문항
+                        - 따로 강의노트를 보지 않고 생성된 문제 상황만 보고 문제를 풀 수 있게 필요한 내용을 모두 포함할 것
                         {get_quiz_format(quiz_type)}
                         JSON 구조:
                         {format_instructions}""",
