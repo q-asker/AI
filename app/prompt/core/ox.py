@@ -9,8 +9,7 @@ ox_quiz_format = {
 """
 }
 
-ox_guidelines = {
-    "SKILLS": """
+ox_guidelines = """
 
     ### 1. 문제 구조 및 내용 요건 
     * **난이도**: DOK Level 2~3 - 개념 적용·분석(Skills), 대학 수준의 판단형 문제
@@ -94,4 +93,3 @@ ox_guidelines = {
     - [ ] **해설 품질:** 단순 진술이 아닌, 정답·오답 Chain의 논리 대비를 포함했는가?  
 
     """
-}

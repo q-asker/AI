@@ -7,8 +7,7 @@ multiple_quiz_format = """
     - 모든 선택지의 외형(길이, 구조)은 'multiple_quiz_guidelines'의 3-B 원칙을 따름
 """
 
-multiple_quiz_guidelines = {
-    "STRATEGIC": """
+multiple_quiz_guidelines = """
     ### 1. 퀴즈의 핵심 원칙
     
     * **난이도**: DOK Level 3 - 전략적 사고(Strategic Thinking), 대학 수준의 추론·분석형 문제
@@ -107,4 +106,3 @@ multiple_quiz_guidelines = {
     - [ ] **논리 일관성:** 선택지 간 논리적 복잡도가 유사하며, 특정 답만 튀지 않는가?
     - [ ] **해설 품질:** 해설이 Reasoning Chain을 기반으로 각 선택지의 논리/오류를 명확히 설명하는가?
     """
-}
