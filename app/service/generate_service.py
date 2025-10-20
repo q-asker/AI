@@ -168,7 +168,6 @@ class GenerateService:
                         문제 생성 지침:
                         {prompt_factory.get_quiz_generation_guide(dok_level, quiz_type)}
                         
-                        
                         ### 출력 요구 사항
                         - 한국어로 작성
                         - JSON 형식으로만 출력 (다른 텍스트 포함 금지)
