@@ -14,8 +14,7 @@ from app.dto.response.generate_response import (
     ProblemResponse,
 )
 from app.dto.response.specific_explanation_response import SpecificExplanationResponse
-from app.prompt.quiz_dok_guideline import get_quiz_generation_guide
-from app.prompt.quiz_format import get_quiz_format
+from app.prompt import prompt_factory
 from app.util.create_chunks import create_chunks
 from app.util.logger import logger
 from app.util.parsing import process_file
@@ -27,7 +26,7 @@ redis_util = RedisUtil()
 class GenerateService:
     @staticmethod
     async def generate_specific_explanation(
-        specific_explanation_request: SpecificExplanationRequest,
+            specific_explanation_request: SpecificExplanationRequest,
     ):
         title = specific_explanation_request.title
         selections = specific_explanation_request.selections
@@ -167,15 +166,15 @@ class GenerateService:
                         "system": f"""
                         주어진 강의노트 내용을 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈 {chunk.quiz_count}개를 생성해주세요.
                         문제 생성 지침:
-                        {get_quiz_generation_guide(dok_level, quiz_type)}
-
-                        응답 요구사항:
+                        {prompt_factory.get_quiz_generation_guide(dok_level, quiz_type)}
+                        
+                        
+                        ### 출력 요구 사항
                         - 한국어로 작성
                         - JSON 형식으로만 출력 (다른 텍스트 포함 금지)
-                        - 강의노트의 핵심 개념을 다루는 문제
-                        - 학습 목표와 연결된 평가 문항
-                        - 따로 강의노트를 보지 않고 생성된 문제 상황만 보고 문제를 풀 수 있게 필요한 내용을 모두 포함할 것
-                        {get_quiz_format(quiz_type)}
+                        - **지문은 자급적(self-contained)이어야 하며**, **따로 강의노트를 보지 않고도 문제 상황만으로 풀이가 가능할 만큼 충분한 정보와 단서를 포함해야 한다.**
+                         {prompt_factory.get_quiz_format(quiz_type)}
+                        
                         JSON 구조:
                         {format_instructions}""",
                         "messages": [
