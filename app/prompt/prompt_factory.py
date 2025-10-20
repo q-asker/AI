@@ -9,11 +9,11 @@ from app.prompt.core.ox import ox_quiz_format
 
 def get_quiz_generation_guide(dok_level: DOKLevel, quiz_type: QuizType):
     if quiz_type == QuizType.OX:
-        return ox_guidelines.get(dok_level)
+        return ox_guidelines
     elif quiz_type == QuizType.BLANK:
-        return blank_quiz_guidelines.get(dok_level)
+        return blank_quiz_guidelines
     elif quiz_type == QuizType.MULTIPLE:
-        return multiple_quiz_guidelines.get(dok_level)
+        return multiple_quiz_guidelines
     else:
         raise ValueError(f"Unsupported quiz type: {quiz_type}")
 

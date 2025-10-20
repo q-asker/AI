@@ -7,8 +7,7 @@ blank_quiz_format = """
     - 모든 선택지의 외형(길이, 구조)은 'blank_quiz_guidelines'의 4, 5, 8번 일관성 원칙을 따름
 """
 
-blank_quiz_guidelines = {
-    "RECALL": """
+blank_quiz_guidelines = """
     ### 1. 문제 생성 목적
     - **난이도**: DOK Level 1 — 기억·재생산(Recall), 기본 개념 확인형 문제
     - 학습자의 **기억(Recall)** 능력을 평가한다
@@ -108,4 +107,3 @@ blank_quiz_guidelines = {
     - [ ] 선택지의 품사·길이·형태가 일관되는가?
     - [ ] 정답이 시각적으로 눈에 띄지 않는가?
     - [ ] 해설이 정의 기반이며 3문장 이내인가?"""
-}
