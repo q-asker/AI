@@ -82,7 +82,7 @@ async def collect_quizzes(baseKey, quiz_count) -> List[GeneratedResult]:
 
 
 def try_make_generated_result(
-        msg, seen_sequences
+    msg, seen_sequences
 ) -> Tuple[str, Optional[GeneratedResult]]:
     logger.info(f"Received message: {msg}")
     if msg["type"] != "message":
@@ -122,7 +122,7 @@ def process_on_remote(keys, mcp_mode):  # SQS 사용시 수행
     for i in range(0, len(keys), 10):
         if mcp_mode:
             entries = []
-            batch = keys[i: i + 10]
+            batch = keys[i : i + 10]
             for j, key in enumerate(batch):
                 entries.append(
                     {
@@ -135,7 +135,7 @@ def process_on_remote(keys, mcp_mode):  # SQS 사용시 수행
 
         else:
             entries = []
-            batch = keys[i: i + 10]
+            batch = keys[i : i + 10]
             for j, key in enumerate(batch):
                 entries.append(
                     {
