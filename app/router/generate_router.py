@@ -26,6 +26,7 @@ async def generate(
 ):
     return await generate_service.search_and_generate(request)
 
+
 @router.post("/specific-explanation")
 async def generate_specific_explanation(
     request: SpecificExplanationRequest, generate_service=Depends(get_generate_service)

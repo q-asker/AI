@@ -228,7 +228,9 @@ class GenerateService:
                     )
                 )
 
+        real_sequence_number = 1
         for i, problem in enumerate(problem_responses):
-            problem.number = i + 1
+            problem.number = real_sequence_number
+            real_sequence_number += 1
 
         return GenerateResponse(quiz=problem_responses)
