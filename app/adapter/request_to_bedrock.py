@@ -7,8 +7,10 @@ from uuid import uuid4
 import boto3
 import httpx
 from dotenv import load_dotenv
+from langchain_core.output_parsers import JsonOutputParser
 
 from app.dto.model.generated_result import GeneratedResult
+from app.dto.model.problem_set import ProblemSet
 from app.util.logger import logger
 from app.util.redis_util import RedisUtil
 
@@ -63,7 +65,7 @@ async def collect_quizzes(baseKey, quiz_count) -> List[GeneratedResult]:
             async for msg in pubsub.listen():
                 published_count += 1
                 status, result = try_make_generated_result(msg, seen_sequences)
-                if status is "ok":
+                if status == "ok":
                     quizzes.append(result)
                 if published_count == quiz_count:
                     break
@@ -82,28 +84,34 @@ async def collect_quizzes(baseKey, quiz_count) -> List[GeneratedResult]:
 
 
 def try_make_generated_result(
-    msg, seen_sequences
+        msg, seen_sequences
 ) -> Tuple[str, Optional[GeneratedResult]]:
-    logger.info(f"Received message: {msg}")
-    if msg["type"] != "message":
-        return "fail", None
-
-    response = msg["data"]
-
     try:
+        logger.info(f"Received message: {msg}")
+        if msg["type"] != "message":
+            return "fail", None
+
+        response = msg["data"]
         response_json = json.loads(response)
-    except json.JSONDecodeError:
-        return "fail", None
 
-    sequence = response_json.get("sequence")
-    if sequence in seen_sequences:
-        logger.warning(f"Duplicate sequence detected: {sequence}")
-        return "fail", None
+        sequence = response_json.get("sequence")
+        if sequence in seen_sequences:
+            logger.warning(f"Duplicate sequence detected: {sequence}")
+            return "fail", None
 
-    seen_sequences.add(sequence)
-    return "ok", GeneratedResult(
-        **response_json,
-    )
+        generated_result = GeneratedResult(**response_json)
+
+        parser = JsonOutputParser(pydantic_object=ProblemSet)
+        temp = parser.parse(generated_result.generated_text)
+
+        if 4 < len(temp.get("quiz")[0].get("selections")):
+            return "fail", None
+
+        seen_sequences.add(sequence)
+        return "ok", generated_result
+    except Exception as e:
+        logger.error(f"Error parsing message: {e}")
+        return "fail", None
 
 
 async def process_on_local(keys, mcp_mode):
@@ -117,12 +125,12 @@ async def process_on_local(keys, mcp_mode):
             raise exc
 
 
-def process_on_remote(keys, mcp_mode):  # SQS 사용시 수행
+def process_on_remote(keys, mcp_mode):
     message_group_id = keys[0].split(":")[1]
     for i in range(0, len(keys), 10):
         if mcp_mode:
             entries = []
-            batch = keys[i : i + 10]
+            batch = keys[i: i + 10]
             for j, key in enumerate(batch):
                 entries.append(
                     {
@@ -135,7 +143,7 @@ def process_on_remote(keys, mcp_mode):  # SQS 사용시 수행
 
         else:
             entries = []
-            batch = keys[i : i + 10]
+            batch = keys[i: i + 10]
             for j, key in enumerate(batch):
                 entries.append(
                     {

@@ -26,7 +26,7 @@ redis_util = RedisUtil()
 class GenerateService:
     @staticmethod
     async def generate_specific_explanation(
-        specific_explanation_request: SpecificExplanationRequest,
+            specific_explanation_request: SpecificExplanationRequest,
     ):
         title = specific_explanation_request.title
         selections = specific_explanation_request.selections
@@ -228,7 +228,9 @@ class GenerateService:
                     )
                 )
 
+        real_sequence_number = 1
         for i, problem in enumerate(problem_responses):
-            problem.number = i + 1
+            problem.number = real_sequence_number
+            real_sequence_number += 1
 
         return GenerateResponse(quiz=problem_responses)
