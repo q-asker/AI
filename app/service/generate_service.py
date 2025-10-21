@@ -38,10 +38,10 @@ class GenerateService:
         print(f"selection_text: {selection_text}")
         bedrock_contents = [
             {
-                "modelId": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+                "modelId": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
                 "body": {
                     "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 5000,
+                    "max_tokens": 50000,
                     "system": f"""
                                 아래는 하나의 객관식 문제와 4개의 선택지입니다. 각 선택지는 정답 여부도 함께 제공됩니다.
                                 문제를 바탕으로, 왜 해당 정답이 맞는지, 다른 선택지들은 왜 틀렸는지를 논리적으로 설명해주세요.
@@ -95,10 +95,10 @@ class GenerateService:
         query = search_request.query
         bedrock_contents = [
             {
-                "modelId": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+                "modelId": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
                 "body": {
                     "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 5000,
+                    "max_tokens": 50000,
                     "system": f"""
                             주어지는 내용을 바탕으로 적절한 참고 사이트를 찾아주세요""",
                     "messages": [
@@ -159,10 +159,10 @@ class GenerateService:
         for chunk in chunks:
             bedrock_contents.append(
                 {
-                    "modelId": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+                    "modelId": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
                     "body": {
                         "anthropic_version": "bedrock-2023-05-31",
-                        "max_tokens": 5000,
+                        "max_tokens": 50000,
                         "system": f"""
                         주어진 강의노트 내용을 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈 {chunk.quiz_count}개를 생성해주세요.
                         문제 생성 지침:
