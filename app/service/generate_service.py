@@ -4,7 +4,12 @@ from typing import List
 
 from langchain_core.output_parsers import JsonOutputParser
 
-from app.adapter.request_to_bedrock import request_to_bedrock
+from app.adapter.request_generate_quiz_to_bedrock import (
+    request_generate_quiz_to_bedrock,
+)
+from app.adapter.request_generate_specific_explanation_to_bedrock import (
+    request_specific_explanation_to_bedrock,
+)
 from app.dto.model.problem_set import ProblemSet
 from app.dto.request.generate_request import GenerateRequest
 from app.dto.request.search_request import SearchRequest
@@ -73,7 +78,9 @@ class GenerateService:
         await redis_util.check_bedrock_rate(len(bedrock_contents), "rl:bedrock:global")
 
         start = time.time()
-        generated_result = await request_to_bedrock(bedrock_contents, mcp_mode=True)
+        generated_result = await request_specific_explanation_to_bedrock(
+            bedrock_contents
+        )
         end = time.time()
         elapsed = end - start
         logger.info(f"소요 시간: {elapsed:.4f}초")
@@ -121,7 +128,7 @@ class GenerateService:
         await redis_util.check_bedrock_rate(len(bedrock_contents), "rl:bedrock:global")
 
         start = time.time()
-        generated_result = await request_to_bedrock(bedrock_contents, mcp_mode=True)
+        generated_result = await request_generate_quiz_to_bedrock(bedrock_contents)
         end = time.time()
         elapsed = end - start
         logger.info(f"소요 시간: {elapsed:.4f}초")
@@ -195,7 +202,7 @@ class GenerateService:
             )
 
         start = time.time()
-        generated_results = await request_to_bedrock(bedrock_contents)
+        generated_results = await request_generate_quiz_to_bedrock(bedrock_contents)
         end = time.time()
         elapsed = end - start
         logger.info(f"소요 시간: {elapsed:.4f}초")
