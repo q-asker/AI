@@ -3,7 +3,7 @@ name: Docker Hub Push & 개발 서버 EC2 배포
 on:
   push:
     branches:
-      - main
+      - prod
   workflow_dispatch: # 수동 실행 이벤트 추가
 
 jobs:
