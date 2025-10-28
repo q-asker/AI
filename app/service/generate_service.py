@@ -1,4 +1,5 @@
 import json
+import random
 import time
 from typing import List
 
@@ -229,6 +230,7 @@ class GenerateService:
             quiz_data = generated_result.get("generated_text")
             quiz = quiz_data.get("quiz")
             for problem in quiz:
+                random.shuffle(problem.get("selections"))
                 problem_responses.append(
                     ProblemResponse(
                         **problem, referencedPages=chunks[i].referenced_pages
