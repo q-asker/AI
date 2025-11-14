@@ -70,7 +70,10 @@ async def collect_quizzes(baseKey, quiz_count) -> List[GeneratedResult]:
                     break
 
     except asyncio.TimeoutError:
-        raise TimeoutError
+        logger.info(
+            f"타임 아웃 발생: 전체 {quiz_count}개 메시지 중 {published_count - 1}개 수신"
+        )
+        return quizzes
 
     except Exception as e:
         raise e

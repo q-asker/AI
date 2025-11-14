@@ -6,7 +6,6 @@ from app.util.logger import logger
 
 app = FastAPI(docs_url="/")
 
-
 app.include_router(generate_router)
 
 
