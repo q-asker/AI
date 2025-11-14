@@ -86,7 +86,7 @@ async def collect_quizzes(baseKey, quiz_count) -> List[GeneratedResult]:
 
 
 def try_make_generated_result(
-        msg, seen_sequences
+    msg, seen_sequences
 ) -> Tuple[str, Optional[GeneratedResult]]:
     try:
         logger.info(f"Received message: {msg}")
@@ -119,7 +119,7 @@ def try_make_generated_result(
 def publish_to_sqs(keys):
     for i in range(0, len(keys), 10):
         entries = []
-        batch = keys[i: i + 10]
+        batch = keys[i : i + 10]
         for j, key in enumerate(batch):
             entries.append(
                 {
