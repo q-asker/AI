@@ -1,6 +1,7 @@
 import json
 import random
 import time
+from copy import deepcopy
 from typing import List
 
 from langchain_core.output_parsers import JsonOutputParser
@@ -152,6 +153,25 @@ class GenerateService:
         )
 
         await redis_util.check_bedrock_rate(len(chunks), "rl:bedrock:global")
+
+        i = 0
+        while i < len(chunks):
+            chunk = chunks[i]
+
+            while chunk.quiz_count > 1:
+                # 기존 chunk 복제
+                new_chunk = deepcopy(chunk)
+                new_chunk.quiz_count = 1  # 복제된 chunk는 1회만 필요하다면 이렇게 설정
+
+                # 현재 인덱스 i 앞에 삽입
+                chunks.insert(i, new_chunk)
+
+                # 원본 chunk의 count 감소
+                chunk.quiz_count -= 1
+
+                i += 1  # 삽입된 만큼 한 칸 이동
+
+            i += 1
 
         for chunk in chunks:
             chunk.referenced_pages = [
