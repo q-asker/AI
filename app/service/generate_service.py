@@ -7,7 +7,7 @@ from typing import List
 from langchain_core.output_parsers import JsonOutputParser
 
 from app.adapter.request_generate_quiz_to_bedrock import (
-    request_generate_quiz_to_bedrock,
+    request_generate_quiz,
 )
 from app.adapter.request_generate_specific_explanation_to_bedrock import (
     request_specific_explanation_to_bedrock,
@@ -107,7 +107,7 @@ class GenerateService:
                 "modelId": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
                 "body": {
                     "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 50000,
+                    "max_tokens": 10000,
                     "system": f"""
                             주어지는 내용을 바탕으로 적절한 참고 사이트를 찾아주세요""",
                     "messages": [
@@ -130,7 +130,7 @@ class GenerateService:
         await redis_util.check_bedrock_rate(len(bedrock_contents), "rl:bedrock:global")
 
         start = time.time()
-        generated_result = await request_generate_quiz_to_bedrock(bedrock_contents)
+        generated_result = await request_generate_quiz(bedrock_contents)
         end = time.time()
         elapsed = end - start
         logger.info(f"소요 시간: {elapsed:.4f}초")
@@ -147,7 +147,7 @@ class GenerateService:
         texts = process_file(uploaded_url, page_numbers)
 
         minimum_page_text_length_per_chunk = 500
-        max_chunk_count = 25
+        max_chunk_count = 15
         chunks = create_chunks(
             texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
         )
@@ -158,16 +158,16 @@ class GenerateService:
         while i < len(chunks):
             chunk = chunks[i]
 
-            while chunk.quiz_count > 1:
+            while chunk.quiz_count > 2:
                 # 기존 chunk 복제
                 new_chunk = deepcopy(chunk)
-                new_chunk.quiz_count = 1  # 복제된 chunk는 1회만 필요하다면 이렇게 설정
+                new_chunk.quiz_count = 2
 
                 # 현재 인덱스 i 앞에 삽입
                 chunks.insert(i, new_chunk)
 
                 # 원본 chunk의 count 감소
-                chunk.quiz_count -= 1
+                chunk.quiz_count -= 2
 
                 i += 1  # 삽입된 만큼 한 칸 이동
 
@@ -183,47 +183,48 @@ class GenerateService:
         parser = JsonOutputParser(pydantic_object=ProblemSet)
         format_instructions = parser.get_format_instructions()
 
-        bedrock_contents = []
+        gpt_contents = []
+
         for chunk in chunks:
-            bedrock_contents.append(
+            gpt_contents.append(
                 {
-                    "modelId": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-                    "body": {
-                        "anthropic_version": "bedrock-2023-05-31",
-                        "max_tokens": 50000,
-                        "system": f"""
-                        주어진 강의노트 내용을 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈 {chunk.quiz_count}개를 생성해주세요.
-                        문제 생성 지침:
-                        {prompt_factory.get_quiz_generation_guide(dok_level, quiz_type)}
-                        
-                        ### 출력 요구 사항
-                        - 한국어로 작성
-                        - JSON 형식으로만 출력 (다른 텍스트 포함 금지)
-                        - **지문은 자급적(self-contained)이어야 하며**, **따로 강의노트를 보지 않고도 문제 상황만으로 풀이가 가능할 만큼 충분한 정보와 단서를 포함해야 한다.**
-                         {prompt_factory.get_quiz_format(quiz_type)}
-                        
-                        JSON 구조:
-                        {format_instructions}""",
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {
-                                        "type": "text",
-                                        "text": f"""
-                                                    # 강의노트
-                                                    {chunk.text}
-                                                """,
-                                    }
-                                ],
-                            }
-                        ],
-                    },
+                    "model": "gpt-4.1-mini",
+                    "temperature": 0,
+                    "max_completion_tokens": 10000,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": f"""
+        당신은 대학 강의노트로부터 평가용 퀴즈를 생성하는 AI입니다.
+        주어진 강의노트 내용을 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈를 {chunk.quiz_count}개 생성하세요.
+
+        문제 생성 지침:
+        {prompt_factory.get_quiz_generation_guide(dok_level, quiz_type)}
+
+        ### 출력 요구 사항
+        - 한국어로 작성
+        - 강의 노트를 참조하라는 문제 생성 금지
+        - 출력은 JSON 형식으로만 출력 (다른 텍스트 포함 금지)
+         {prompt_factory.get_quiz_format(quiz_type)}
+
+        아래 JSON 형식에 정확히 맞춰서 출력하세요:
+        JSON 구조(스키마 설명):
+        {format_instructions}
+                            """.strip(),
+                        },
+                        {
+                            "role": "user",
+                            "content": f"""# 강의노트
+
+                             {chunk.text}
+                            """.strip(),
+                        },
+                    ],
                 }
             )
 
         start = time.time()
-        generated_results = await request_generate_quiz_to_bedrock(bedrock_contents)
+        generated_results = await request_generate_quiz(gpt_contents)
         end = time.time()
         elapsed = end - start
         logger.info(f"소요 시간: {elapsed:.4f}초")
