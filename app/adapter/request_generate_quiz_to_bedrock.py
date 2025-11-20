@@ -24,7 +24,7 @@ sqs = boto3.client("sqs", region_name=aws_region)
 redis_util = RedisUtil()
 
 
-async def request_generate_quiz_to_bedrock(bedrock_contents):
+async def request_generate_quiz(bedrock_contents):
     keys = []
     quiz_count = len(bedrock_contents)
 
