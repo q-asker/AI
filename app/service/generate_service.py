@@ -205,8 +205,8 @@ class GenerateService:
         ### 출력 요구 사항
         - 한국어로 작성
         - 강의 노트를 참조하라는 문제 생성 금지
-        - 출력은 JSON 형식으로만 출력 (다른 텍스트 
-    포함 금지)
+        - 출력은 JSON 형식으로만 출력 (다른 텍스트 포함 금지)
+        - 개행을 적극적으로 사용하여 가독성 증대
          {prompt_factory.get_quiz_format(quiz_type)}
 
         아래 JSON 형식에 정확히 맞춰서 출력하세요:
