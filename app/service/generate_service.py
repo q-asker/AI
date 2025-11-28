@@ -13,7 +13,7 @@ from app.adapter.request_generate_specific_explanation_to_bedrock import (
     request_specific_explanation_to_bedrock,
 )
 from app.dto.model.problem_set import ProblemSet
-from app.dto.request.generate_request import GenerateRequest
+from app.dto.request.generate_request import GenerateRequest, QuizType
 from app.dto.request.search_request import SearchRequest
 from app.dto.request.specific_explanation_request import SpecificExplanationRequest
 from app.dto.response.generate_response import (
@@ -253,7 +253,11 @@ class GenerateService:
             quiz_data = generated_result.get("generated_text")
             quiz = quiz_data.get("quiz")
             for problem in quiz:
-                random.shuffle(problem.get("selections"))
+                if (
+                        quiz_type == QuizType.MULTIPLE.value
+                        or quiz_type == QuizType.BLANK.value
+                ):
+                    random.shuffle(problem.get("selections"))
                 problem_responses.append(
                     ProblemResponse(
                         **problem, referencedPages=chunks[i].referenced_pages
