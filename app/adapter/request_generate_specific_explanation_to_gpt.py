@@ -14,21 +14,23 @@ load_dotenv()
 gpt_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-def call_gpt_text(gpt_content: dict) -> str:
-    model = gpt_content.get("model")
-    messages = gpt_content.get("messages") or []
+def call_gpt(gpt_request: dict) -> str:
+    model = gpt_request.get("model") or "gpt-5-mini"
+    messages = gpt_request.get("messages")
+    if not messages:
+        raise ValueError("gpt_request.messages is required")
 
     kwargs = {"model": model, "messages": messages}
 
-    response_format = gpt_content.get("response_format")
+    response_format = gpt_request.get("response_format")
     if response_format is not None:
         kwargs["response_format"] = response_format
 
-    temperature = gpt_content.get("temperature")
+    temperature = gpt_request.get("temperature")
     if temperature is not None:
         kwargs["temperature"] = temperature
 
-    max_completion_tokens = gpt_content.get("max_completion_tokens")
+    max_completion_tokens = gpt_request.get("max_completion_tokens")
     if max_completion_tokens is not None:
         kwargs["max_completion_tokens"] = max_completion_tokens
 
@@ -40,8 +42,8 @@ def call_gpt_text(gpt_content: dict) -> str:
         return "fail"
 
 
-async def request_specific_explanation_to_bedrock(gpt_contents: List[dict]) -> List[GeneratedResult]:
-    tasks = [asyncio.to_thread(call_gpt_text, content) for content in gpt_contents]
+async def request_specific_explanation(gpt_requests: List[dict]) -> List[GeneratedResult]:
+    tasks = [asyncio.to_thread(call_gpt, req) for req in gpt_requests]
     texts = await asyncio.gather(*tasks)
 
     results: List[GeneratedResult] = []

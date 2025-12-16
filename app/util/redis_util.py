@@ -29,11 +29,6 @@ class RedisUtil:
             key, json.dumps(bedrock_content, ensure_ascii=False), ex=600
         )
 
-    async def subscribe(self, key):
-        pubsub = self.redis_client.pubsub()
-        await pubsub.subscribe(key)
-        return pubsub
-
     async def check_bedrock_rate(self, generate_count: int, key: str):
         WINDOW = 60
         LIMIT = 75
