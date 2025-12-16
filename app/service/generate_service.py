@@ -1,11 +1,10 @@
 import random
 from copy import deepcopy
-from typing import List
+from typing import Any, List
 
 from langchain_core.output_parsers import JsonOutputParser
 
 from app.adapter.request_batch import request_text_batch
-from app.adapter.request_single import request_chat_completion_text
 from app.dto.model.generated_result import GeneratedResult
 from app.dto.model.problem_set import ProblemSet
 from app.dto.request.generate_request import GenerateRequest, QuizType
@@ -21,6 +20,50 @@ from app.util.redis_util import RedisUtil
 from app.util.timing import log_elapsed
 
 redis_util = RedisUtil()
+
+
+def _enforce_additional_properties_false(schema: Any) -> Any:
+    """
+    OpenAI Structured Outputs(json_schema, strict=True) 제약:
+    object 스키마는 additionalProperties=false 가 필요하다.
+    Pydantic이 생성한 JSON Schema에 이를 재귀적으로 주입한다.
+    """
+    if isinstance(schema, list):
+        return [_enforce_additional_properties_false(s) for s in schema]
+
+    if not isinstance(schema, dict):
+        return schema
+
+    # object 타입이면 additionalProperties를 명시적으로 false로 고정
+    if schema.get("type") == "object" and "additionalProperties" not in schema:
+        schema["additionalProperties"] = False
+
+    # 자주 등장하는 하위 스키마 컨테이너들 재귀 순회
+    dict_children_keys = ("properties", "$defs", "definitions")
+    for key in dict_children_keys:
+        child = schema.get(key)
+        if isinstance(child, dict):
+            for k, v in child.items():
+                child[k] = _enforce_additional_properties_false(v)
+
+    list_children_keys = ("anyOf", "oneOf", "allOf", "prefixItems")
+    for key in list_children_keys:
+        child = schema.get(key)
+        if isinstance(child, list):
+            schema[key] = [_enforce_additional_properties_false(v) for v in child]
+
+    # 단일 하위 스키마들
+    for key in ("items", "not", "if", "then", "else"):
+        child = schema.get(key)
+        if isinstance(child, (dict, list)):
+            schema[key] = _enforce_additional_properties_false(child)
+
+    # additionalProperties가 dict로 오는 케이스도 대비(여기선 false로 고정하는 게 목적이지만, 안전하게 재귀 처리)
+    ap = schema.get("additionalProperties")
+    if isinstance(ap, dict):
+        schema["additionalProperties"] = _enforce_additional_properties_false(ap)
+
+    return schema
 
 
 class GenerateService:
@@ -50,14 +93,12 @@ class GenerateService:
                 # 기존 chunk 복제
                 new_chunk = deepcopy(chunk)
                 new_chunk.quiz_count = 2
-
                 # 현재 인덱스 i 앞에 삽입
                 chunks.insert(i, new_chunk)
-
                 # 원본 chunk의 count 감소
                 chunk.quiz_count -= 2
-
-                i += 1  # 삽입된 만큼 한 칸 이동
+                # 삽입된 만큼 한 칸 이동
+                i += 1
 
             i += 1
 
@@ -69,7 +110,9 @@ class GenerateService:
             ]
 
         parser = JsonOutputParser(pydantic_object=ProblemSet)
-        problem_set_json_schema = ProblemSet.model_json_schema()
+        problem_set_json_schema = _enforce_additional_properties_false(
+            deepcopy(ProblemSet.model_json_schema())
+        )
 
         gpt_contents = []
 
@@ -77,7 +120,6 @@ class GenerateService:
             gpt_contents.append(
                 {
                     "model": "gpt-5-mini",
-                    "temperature": 0.3,
                     "max_completion_tokens": 10000,
                     "response_format": {
                         "type": "json_schema",
@@ -117,7 +159,7 @@ class GenerateService:
             )
 
         with log_elapsed(logger, "request_generate_quiz"):
-            texts = await request_text_batch(gpt_contents, request_chat_completion_text)
+            texts = await request_text_batch(gpt_contents)
             generated_results: List[GeneratedResult] = []
             for sequence, text in enumerate(texts, start=1):
                 if not text:
@@ -157,7 +199,6 @@ class GenerateService:
 
         sorted_responses.sort(key=lambda x: x["sequence"])
 
-        # sequence(1-based) -> referenced pages 매핑 (응답 누락 시에도 안전)
         seq_to_pages = {i + 1: chunk.referenced_pages for i, chunk in enumerate(chunks)}
 
         problem_responses: List[ProblemResponse] = []
