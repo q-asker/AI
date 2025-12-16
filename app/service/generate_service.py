@@ -4,7 +4,9 @@ from typing import List
 
 from langchain_core.output_parsers import JsonOutputParser
 
-from app.adapter.request_generate_quiz_to_gpt import request_generate_quiz
+from app.adapter.request_batch import request_text_batch
+from app.adapter.request_single import request_chat_completion_text
+from app.dto.model.generated_result import GeneratedResult
 from app.dto.model.problem_set import ProblemSet
 from app.dto.request.generate_request import GenerateRequest, QuizType
 from app.dto.response.generate_response import (
@@ -114,12 +116,25 @@ class GenerateService:
                                     )
 
         with log_elapsed(logger, "request_generate_quiz"):
-            generated_results = await request_generate_quiz(gpt_contents)
+            texts = await request_text_batch(gpt_contents, request_chat_completion_text)
+            generated_results: List[GeneratedResult] = []
+            for sequence, text in enumerate(texts, start=1):
+                if not text:
+                    continue
+                generated_results.append(GeneratedResult(sequence=sequence, generated_text=text))
 
         sorted_responses = []
         for i, generated_result in enumerate(generated_results):
             try:
                 generated_text = parser.parse(generated_result.generated_text)
+
+                # 방어: 첫 문제 선택지가 4개 초과면 폐기
+                quiz = generated_text.get("quiz") if isinstance(generated_text, dict) else None
+                if isinstance(quiz, list) and len(quiz) > 0:
+                    selections = quiz[0].get("selections") if isinstance(quiz[0], dict) else None
+                    if isinstance(selections, list) and len(selections) > 4:
+                        continue
+
                 sorted_responses.append(
                     {
                         "sequence": generated_result.sequence,
@@ -133,8 +148,11 @@ class GenerateService:
 
         sorted_responses.sort(key=lambda x: x["sequence"])
 
+        # sequence(1-based) -> referenced pages 매핑 (응답 누락 시에도 안전)
+        seq_to_pages = {i + 1: chunk.referenced_pages for i, chunk in enumerate(chunks)}
+
         problem_responses: List[ProblemResponse] = []
-        for i, generated_result in enumerate(sorted_responses):
+        for generated_result in sorted_responses:
             quiz_data = generated_result.get("generated_text")
             quiz = quiz_data.get("quiz")
             for problem in quiz:
@@ -145,7 +163,7 @@ class GenerateService:
                     random.shuffle(problem.get("selections"))
                 problem_responses.append(
                     ProblemResponse(
-                        **problem, referencedPages=chunks[i].referenced_pages
+                        **problem, referencedPages=seq_to_pages.get(generated_result["sequence"], [])
                     )
                 )
 

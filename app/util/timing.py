@@ -17,7 +17,7 @@ def log_elapsed(
 
     사용 예)
         with log_elapsed(logger, "request_generate_quiz"):
-            result = await request_generate_quiz(...)
+            result = await some_async_work(...)
     """
     start = time.perf_counter()
     try:

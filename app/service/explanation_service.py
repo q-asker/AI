@@ -1,7 +1,8 @@
-from app.adapter.request_generate_specific_explanation_to_gpt import (
-    request_specific_explanation,
-)
-from app.adapter.request_search_references_to_gpt import request_search_references
+import asyncio
+import json
+
+from app.adapter.request_batch import request_text_batch
+from app.adapter.request_single import request_chat_completion_text, request_responses_output_text
 from app.dto.request.search_request import SearchRequest
 from app.dto.request.specific_explanation_request import SpecificExplanationRequest
 from app.dto.response.specific_explanation_response import SpecificExplanationResponse
@@ -48,9 +49,9 @@ class ExplanationService:
         ]
 
         with log_elapsed(logger, "request_specific_explanation"):
-            generated_result = await request_specific_explanation(gpt_contents)
+            texts = await request_text_batch(gpt_contents, request_chat_completion_text)
 
-        explanation_text = generated_result[0].generated_text if generated_result else ""
+        explanation_text = texts[0] if texts and texts[0] else ""
 
         return SpecificExplanationResponse(specific_explanation=explanation_text)
 
@@ -79,31 +80,39 @@ class ExplanationService:
             "additionalProperties": False,
         }
 
+        messages = [
+            {
+                "role": "system",
+                "content": "\n".join(
+                    [
+                        "사용자의 질의에 대해 학습에 도움이 되는 참고 링크를 추천한다.",
+                        "가능하면 공식 문서/표준/신뢰할 수 있는 자료를 우선한다.",
+                        "가능하면 웹 검색 결과를 바탕으로 실제 존재하는 URL을 제시한다.",
+                        "반드시 JSON 스키마에 맞춰서만 출력한다.",
+                    ]
+                ),
+            },
+            {"role": "user", "content": f"질의: {query}\n\n참고 사이트(3~6개)를 추천해줘."},
+        ]
+
+        # Responses API 기준 요청 구조를 service 레벨에서 구성한다.
         gpt_content = {
             "model": "gpt-5-mini",
             "temperature": 0.2,
-            "max_completion_tokens": 1200,
+            "max_output_tokens": 1200,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": "search_references", "strict": True, "schema": response_schema},
             },
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "\n".join(
-                        [
-                            "사용자의 질의에 대해 학습에 도움이 되는 참고 링크를 추천한다.",
-                            "가능하면 공식 문서/표준/신뢰할 수 있는 자료를 우선한다.",
-                            "반드시 JSON 스키마에 맞춰서만 출력한다.",
-                        ]
-                    ),
-                },
-                {"role": "user", "content": f"질의: {query}\n\n참고 사이트(3~6개)를 추천해줘."},
-            ],
+            "input": messages,
+            "tools": [{"type": "web_search_preview"}],
+            "tool_choice": "auto",
         }
 
         with log_elapsed(logger, "request_search_references"):
-            result = request_search_references(gpt_content)
+            # async 컨텍스트에서 동기 SDK 호출이므로 thread로 감싼다.
+            text = await asyncio.to_thread(request_responses_output_text, gpt_content)
+            result = json.loads(text)
 
         return result
 
