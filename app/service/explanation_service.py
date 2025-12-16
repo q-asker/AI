@@ -2,7 +2,10 @@ import asyncio
 import json
 
 from app.adapter.request_batch import request_text_batch
-from app.adapter.request_single import request_chat_completion_text, request_responses_output_text
+from app.adapter.request_single import (
+    request_chat_completion_text,
+    request_responses_output_text,
+)
 from app.dto.request.search_request import SearchRequest
 from app.dto.request.specific_explanation_request import SpecificExplanationRequest
 from app.dto.response.specific_explanation_response import SpecificExplanationResponse
@@ -92,7 +95,10 @@ class ExplanationService:
                     ]
                 ),
             },
-            {"role": "user", "content": f"질의: {query}\n\n참고 사이트(3~6개)를 추천해줘."},
+            {
+                "role": "user",
+                "content": f"질의: {query}\n\n참고 사이트(3~6개)를 추천해줘.",
+            },
         ]
 
         # Responses API 기준 요청 구조를 service 레벨에서 구성한다.
@@ -102,7 +108,11 @@ class ExplanationService:
             "max_output_tokens": 1200,
             "response_format": {
                 "type": "json_schema",
-                "json_schema": {"name": "search_references", "strict": True, "schema": response_schema},
+                "json_schema": {
+                    "name": "search_references",
+                    "strict": True,
+                    "schema": response_schema,
+                },
             },
             "input": messages,
             "tools": [{"type": "web_search_preview"}],
@@ -115,4 +125,3 @@ class ExplanationService:
             result = json.loads(text)
 
         return result
-

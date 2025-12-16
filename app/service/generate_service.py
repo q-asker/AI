@@ -22,6 +22,7 @@ from app.util.timing import log_elapsed
 
 redis_util = RedisUtil()
 
+
 class GenerateService:
     @staticmethod
     async def generate(generate_request: GenerateRequest):
@@ -103,17 +104,17 @@ class GenerateService:
                                 문항 형식(유형별 제약):
                                 {prompt_factory.get_quiz_format(quiz_type)}
                                                     """.strip(),
-                                                },
-                                                {
-                                                    "role": "user",
-                                                    "content": f"""# 강의노트
+                        },
+                        {
+                            "role": "user",
+                            "content": f"""# 강의노트
 
                                                     {chunk.text}
                                                     """.strip(),
-                                                },
-                                            ],
-                                        }
-                                    )
+                        },
+                    ],
+                }
+            )
 
         with log_elapsed(logger, "request_generate_quiz"):
             texts = await request_text_batch(gpt_contents, request_chat_completion_text)
@@ -121,7 +122,9 @@ class GenerateService:
             for sequence, text in enumerate(texts, start=1):
                 if not text:
                     continue
-                generated_results.append(GeneratedResult(sequence=sequence, generated_text=text))
+                generated_results.append(
+                    GeneratedResult(sequence=sequence, generated_text=text)
+                )
 
         sorted_responses = []
         for i, generated_result in enumerate(generated_results):
@@ -129,9 +132,15 @@ class GenerateService:
                 generated_text = parser.parse(generated_result.generated_text)
 
                 # 방어: 첫 문제 선택지가 4개 초과면 폐기
-                quiz = generated_text.get("quiz") if isinstance(generated_text, dict) else None
+                quiz = (
+                    generated_text.get("quiz")
+                    if isinstance(generated_text, dict)
+                    else None
+                )
                 if isinstance(quiz, list) and len(quiz) > 0:
-                    selections = quiz[0].get("selections") if isinstance(quiz[0], dict) else None
+                    selections = (
+                        quiz[0].get("selections") if isinstance(quiz[0], dict) else None
+                    )
                     if isinstance(selections, list) and len(selections) > 4:
                         continue
 
@@ -157,13 +166,16 @@ class GenerateService:
             quiz = quiz_data.get("quiz")
             for problem in quiz:
                 if (
-                        quiz_type == QuizType.MULTIPLE.value
-                        or quiz_type == QuizType.BLANK.value
+                    quiz_type == QuizType.MULTIPLE.value
+                    or quiz_type == QuizType.BLANK.value
                 ):
                     random.shuffle(problem.get("selections"))
                 problem_responses.append(
                     ProblemResponse(
-                        **problem, referencedPages=seq_to_pages.get(generated_result["sequence"], [])
+                        **problem,
+                        referencedPages=seq_to_pages.get(
+                            generated_result["sequence"], []
+                        ),
                     )
                 )
 
