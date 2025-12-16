@@ -1,5 +1,4 @@
 import random
-import time
 from copy import deepcopy
 from typing import List
 
@@ -17,9 +16,9 @@ from app.util.create_chunks import create_chunks
 from app.util.logger import logger
 from app.util.parsing import process_file
 from app.util.redis_util import RedisUtil
+from app.util.timing import log_elapsed
 
 redis_util = RedisUtil()
-
 
 class GenerateService:
     @staticmethod
@@ -114,11 +113,8 @@ class GenerateService:
                                         }
                                     )
 
-        start = time.time()
-        generated_results = await request_generate_quiz(gpt_contents)
-        end = time.time()
-        elapsed = end - start
-        logger.info(f"소요 시간: {elapsed:.4f}초")
+        with log_elapsed(logger, "request_generate_quiz"):
+            generated_results = await request_generate_quiz(gpt_contents)
 
         sorted_responses = []
         for i, generated_result in enumerate(generated_results):

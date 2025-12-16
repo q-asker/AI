@@ -1,5 +1,3 @@
-import time
-
 from app.adapter.request_generate_specific_explanation_to_gpt import (
     request_specific_explanation,
 )
@@ -8,6 +6,7 @@ from app.dto.request.search_request import SearchRequest
 from app.dto.request.specific_explanation_request import SpecificExplanationRequest
 from app.dto.response.specific_explanation_response import SpecificExplanationResponse
 from app.util.logger import logger
+from app.util.timing import log_elapsed
 
 
 class ExplanationService:
@@ -48,11 +47,8 @@ class ExplanationService:
             }
         ]
 
-        start = time.time()
-        generated_result = await request_specific_explanation(gpt_contents)
-        end = time.time()
-        elapsed = end - start
-        logger.info(f"소요 시간: {elapsed:.4f}초")
+        with log_elapsed(logger, "request_specific_explanation"):
+            generated_result = await request_specific_explanation(gpt_contents)
 
         explanation_text = generated_result[0].generated_text if generated_result else ""
 
@@ -106,11 +102,8 @@ class ExplanationService:
             ],
         }
 
-        start = time.time()
-        result = request_search_references(gpt_content)
-        end = time.time()
-        elapsed = end - start
-        logger.info(f"소요 시간: {elapsed:.4f}초")
+        with log_elapsed(logger, "request_search_references"):
+            result = request_search_references(gpt_content)
 
         return result
 
