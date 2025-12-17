@@ -1,141 +1,72 @@
-import json
 import random
-import time
 from copy import deepcopy
-from typing import List
+from typing import Any, List
 
 from langchain_core.output_parsers import JsonOutputParser
 
-from app.adapter.request_generate_quiz_to_bedrock import (
-    request_generate_quiz,
-)
-from app.adapter.request_generate_specific_explanation_to_bedrock import (
-    request_specific_explanation_to_bedrock,
-)
+from app.adapter.request_batch import request_text_batch
+from app.client.redis import RedisUtil
+from app.dto.model.generated_result import GeneratedResult
 from app.dto.model.problem_set import ProblemSet
 from app.dto.request.generate_request import GenerateRequest, QuizType
-from app.dto.request.search_request import SearchRequest
-from app.dto.request.specific_explanation_request import SpecificExplanationRequest
 from app.dto.response.generate_response import (
     GenerateResponse,
     ProblemResponse,
 )
-from app.dto.response.specific_explanation_response import SpecificExplanationResponse
 from app.prompt import prompt_factory
 from app.util.create_chunks import create_chunks
 from app.util.logger import logger
 from app.util.parsing import process_file
-from app.util.redis_util import RedisUtil
+from app.util.timing import log_elapsed
 
 redis_util = RedisUtil()
 
 
+def _enforce_additional_properties_false(schema: Any) -> Any:
+    """
+    OpenAI Structured Outputs(json_schema, strict=True) 제약:
+    object 스키마는 additionalProperties=false 가 필요하다.
+    Pydantic이 생성한 JSON Schema에 이를 재귀적으로 주입한다.
+    """
+    if isinstance(schema, list):
+        return [_enforce_additional_properties_false(s) for s in schema]
+
+    if not isinstance(schema, dict):
+        return schema
+
+    # object 타입이면 additionalProperties를 명시적으로 false로 고정
+    if schema.get("type") == "object" and "additionalProperties" not in schema:
+        schema["additionalProperties"] = False
+
+    # 자주 등장하는 하위 스키마 컨테이너들 재귀 순회
+    dict_children_keys = ("properties", "$defs", "definitions")
+    for key in dict_children_keys:
+        child = schema.get(key)
+        if isinstance(child, dict):
+            for k, v in child.items():
+                child[k] = _enforce_additional_properties_false(v)
+
+    list_children_keys = ("anyOf", "oneOf", "allOf", "prefixItems")
+    for key in list_children_keys:
+        child = schema.get(key)
+        if isinstance(child, list):
+            schema[key] = [_enforce_additional_properties_false(v) for v in child]
+
+    # 단일 하위 스키마들
+    for key in ("items", "not", "if", "then", "else"):
+        child = schema.get(key)
+        if isinstance(child, (dict, list)):
+            schema[key] = _enforce_additional_properties_false(child)
+
+    # additionalProperties가 dict로 오는 케이스도 대비(여기선 false로 고정하는 게 목적이지만, 안전하게 재귀 처리)
+    ap = schema.get("additionalProperties")
+    if isinstance(ap, dict):
+        schema["additionalProperties"] = _enforce_additional_properties_false(ap)
+
+    return schema
+
+
 class GenerateService:
-    @staticmethod
-    async def generate_specific_explanation(
-            specific_explanation_request: SpecificExplanationRequest,
-    ):
-        title = specific_explanation_request.title
-        selections = specific_explanation_request.selections
-        print(f"title: {title}")
-        selection_text = ""
-        for idx, s in enumerate(selections, start=1):
-            answer_tag = "(정답)" if s.correct else ""
-            selection_text += f"{idx}. {s.content} {answer_tag}\n"
-        print(f"selection_text: {selection_text}")
-        bedrock_contents = [
-            {
-                "modelId": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-                "body": {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 50000,
-                    "system": f"""
-                                아래는 하나의 객관식 문제와 4개의 선택지입니다. 각 선택지는 정답 여부도 함께 제공됩니다.
-                                문제를 바탕으로, 왜 해당 정답이 맞는지, 다른 선택지들은 왜 틀렸는지를 논리적으로 설명해주세요.
-                                - 왜 해당 선택지가 정답인지 설명하세요.
-                                - 나머지 선택지들은 왜 틀렸는지 설명하세요.
-                                - 형식은 단순한 서술문으로, JSON 형태로 응답하지 마세요.
-                                - 하나의 글로 말하세요.
-                                - 검색한 경우, 그 출처를 url 형식으로 밝히세요.
-                    """,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": f"""
-                                            문제: {title}
-                                            선택지:
-                                            {selection_text}
-                                            """,
-                                }
-                            ],
-                        }
-                    ],
-                },
-            }
-        ]
-
-        await redis_util.check_bedrock_rate(len(bedrock_contents), "rl:bedrock:global")
-
-        start = time.time()
-        generated_result = await request_specific_explanation_to_bedrock(
-            bedrock_contents
-        )
-        end = time.time()
-        elapsed = end - start
-        logger.info(f"소요 시간: {elapsed:.4f}초")
-        raw_text = (
-            generated_result[0].generated_text
-            if hasattr(generated_result[0], "generated_text")
-            else str(generated_result[0])
-        )
-        try:
-            parsed_json = json.loads(raw_text)
-            explanation_text = parsed_json.get("specific_explanation", raw_text)
-        except json.JSONDecodeError:
-            explanation_text = raw_text
-        print(f"generated_result: {generated_result}")
-        return SpecificExplanationResponse(specific_explanation=explanation_text)
-
-    @staticmethod
-    async def search_and_generate(search_request: SearchRequest):
-        query = search_request.query
-        bedrock_contents = [
-            {
-                "modelId": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-                "body": {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 10000,
-                    "system": f"""
-                            주어지는 내용을 바탕으로 적절한 참고 사이트를 찾아주세요""",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": f"""
-                                        ${query}
-                                        """,
-                                }
-                            ],
-                        }
-                    ],
-                },
-            }
-        ]
-
-        await redis_util.check_bedrock_rate(len(bedrock_contents), "rl:bedrock:global")
-
-        start = time.time()
-        generated_result = await request_generate_quiz(bedrock_contents)
-        end = time.time()
-        elapsed = end - start
-        logger.info(f"소요 시간: {elapsed:.4f}초")
-        return json.loads(generated_result[0])
-
     @staticmethod
     async def generate(generate_request: GenerateRequest):
         uploaded_url = generate_request.uploadedUrl
@@ -146,9 +77,8 @@ class GenerateService:
 
         texts = process_file(uploaded_url, page_numbers)
 
-        minimum_page_text_length_per_chunk = 500
+        minimum_page_text_length_per_chunk = 1000
         max_chunk_count = 15
-        # TODO min_quiz_size = 3
         chunks = create_chunks(
             texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
         )
@@ -163,14 +93,12 @@ class GenerateService:
                 # 기존 chunk 복제
                 new_chunk = deepcopy(chunk)
                 new_chunk.quiz_count = 2
-
                 # 현재 인덱스 i 앞에 삽입
                 chunks.insert(i, new_chunk)
-
                 # 원본 chunk의 count 감소
                 chunk.quiz_count -= 2
-
-                i += 1  # 삽입된 만큼 한 칸 이동
+                # 삽입된 만큼 한 칸 이동
+                i += 1
 
             i += 1
 
@@ -182,7 +110,9 @@ class GenerateService:
             ]
 
         parser = JsonOutputParser(pydantic_object=ProblemSet)
-        format_instructions = parser.get_format_instructions()
+        problem_set_json_schema = _enforce_additional_properties_false(
+            deepcopy(ProblemSet.model_json_schema())
+        )
 
         gpt_contents = []
 
@@ -190,51 +120,73 @@ class GenerateService:
             gpt_contents.append(
                 {
                     "model": "gpt-4.1-mini",
-                    "temperature": 0.3,
                     "max_completion_tokens": 10000,
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "problem_set",
+                            "strict": True,
+                            "schema": problem_set_json_schema,
+                        },
+                    },
                     "messages": [
                         {
                             "role": "system",
                             "content": f"""
-        당신은 대학 강의노트로부터 평가용 퀴즈를 생성하는 AI입니다.
-        주어진 강의노트 내용을 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈를 {chunk.quiz_count}개 생성하세요.
+                                당신은 대학 강의노트로부터 평가용 퀴즈를 생성하는 AI입니다.
+                                주어진 강의노트 내용을 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈를 정확히 {chunk.quiz_count}개 생성하세요.
 
-        문제 생성 지침:
-        {prompt_factory.get_quiz_generation_guide(dok_level, quiz_type)}
+                                작성 규칙:
+                                - 한국어로 작성
+                                - 마크다운을 활용해 가독성을 높힌다
+                                - 강의 노트를 참조하라는 문제 생성 금지 (예: "강의노트에 따르면", "본문을 참고하면" 등 금지)
 
-        ### 출력 요구 사항
-        - 한국어로 작성
-        - 강의 노트를 참조하라는 문제 생성 금지
-        - 출력은 JSON 형식으로만 출력 (다른 텍스트 포함 금지)
-        - 개행을 적극적으로 사용하여 가독성 증대
-         {prompt_factory.get_quiz_format(quiz_type)}
+                                문제 생성 지침(품질/난이도):
+                                {prompt_factory.get_quiz_generation_guide(dok_level, quiz_type)}
 
-        아래 JSON 형식에 정확히 맞춰서 출력하세요:
-        JSON 구조(스키마 설명):
-        {format_instructions}
-                            """.strip(),
+                                문항 형식(유형별 제약):
+                                {prompt_factory.get_quiz_format(quiz_type)}
+                                                    """.strip(),
                         },
                         {
                             "role": "user",
                             "content": f"""# 강의노트
 
-                             {chunk.text}
-                            """.strip(),
+                                                    {chunk.text}
+                                                    """.strip(),
                         },
                     ],
                 }
             )
 
-        start = time.time()
-        generated_results = await request_generate_quiz(gpt_contents)
-        end = time.time()
-        elapsed = end - start
-        logger.info(f"소요 시간: {elapsed:.4f}초")
+        with log_elapsed(logger, "request_generate_quiz"):
+            texts = await request_text_batch(gpt_contents)
+            generated_results: List[GeneratedResult] = []
+            for sequence, text in enumerate(texts, start=1):
+                if not text:
+                    continue
+                generated_results.append(
+                    GeneratedResult(sequence=sequence, generated_text=text)
+                )
 
         sorted_responses = []
         for i, generated_result in enumerate(generated_results):
             try:
                 generated_text = parser.parse(generated_result.generated_text)
+
+                # 방어: 첫 문제 선택지가 4개 초과면 폐기
+                quiz = (
+                    generated_text.get("quiz")
+                    if isinstance(generated_text, dict)
+                    else None
+                )
+                if isinstance(quiz, list) and len(quiz) > 0:
+                    selections = (
+                        quiz[0].get("selections") if isinstance(quiz[0], dict) else None
+                    )
+                    if isinstance(selections, list) and len(selections) > 4:
+                        continue
+
                 sorted_responses.append(
                     {
                         "sequence": generated_result.sequence,
@@ -248,19 +200,24 @@ class GenerateService:
 
         sorted_responses.sort(key=lambda x: x["sequence"])
 
+        seq_to_pages = {i + 1: chunk.referenced_pages for i, chunk in enumerate(chunks)}
+
         problem_responses: List[ProblemResponse] = []
-        for i, generated_result in enumerate(sorted_responses):
+        for generated_result in sorted_responses:
             quiz_data = generated_result.get("generated_text")
             quiz = quiz_data.get("quiz")
             for problem in quiz:
                 if (
-                        quiz_type == QuizType.MULTIPLE.value
-                        or quiz_type == QuizType.BLANK.value
+                    quiz_type == QuizType.MULTIPLE.value
+                    or quiz_type == QuizType.BLANK.value
                 ):
                     random.shuffle(problem.get("selections"))
                 problem_responses.append(
                     ProblemResponse(
-                        **problem, referencedPages=chunks[i].referenced_pages
+                        **problem,
+                        referencedPages=seq_to_pages.get(
+                            generated_result["sequence"], []
+                        ),
                     )
                 )
 
