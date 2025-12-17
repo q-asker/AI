@@ -19,6 +19,7 @@ langchain-core==0.3.63
 langsmith==0.3.43
 lxml==5.4.0
 mypy_extensions==1.1.0
+openai==1.57.0
 orjson==3.10.18
 packaging==24.2
 pathspec==0.12.1

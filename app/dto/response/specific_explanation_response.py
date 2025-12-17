@@ -1,7 +1,14 @@
-from pydantic import BaseModel
 from typing import List
-from app.dto.model.problem_set import Selection
+
+from pydantic import BaseModel, Field
+
+
+class Reference(BaseModel):
+    title: str
+    url: str
+    why: str
 
 
 class SpecificExplanationResponse(BaseModel):
     specific_explanation: str
+    references: List[Reference] = Field(default_factory=list)
