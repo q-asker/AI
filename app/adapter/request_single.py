@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 
+from app.client.oepn_ai import get_gpt_client
 from app.util.logger import logger
-from app.util.oepn_ai import get_gpt_client
 
 load_dotenv()
 

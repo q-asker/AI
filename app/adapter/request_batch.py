@@ -1,8 +1,8 @@
 import asyncio
 from typing import List, Optional
 
+from app.client.oepn_ai import get_gpt_client
 from app.util.logger import logger
-from app.util.oepn_ai import get_gpt_client
 
 
 def request_chat_completion_text(gpt_request: dict) -> str:

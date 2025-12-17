@@ -5,6 +5,7 @@ from typing import Any, List
 from langchain_core.output_parsers import JsonOutputParser
 
 from app.adapter.request_batch import request_text_batch
+from app.client.redis import RedisUtil
 from app.dto.model.generated_result import GeneratedResult
 from app.dto.model.problem_set import ProblemSet
 from app.dto.request.generate_request import GenerateRequest, QuizType
@@ -16,7 +17,6 @@ from app.prompt import prompt_factory
 from app.util.create_chunks import create_chunks
 from app.util.logger import logger
 from app.util.parsing import process_file
-from app.util.redis_util import RedisUtil
 from app.util.timing import log_elapsed
 
 redis_util = RedisUtil()
@@ -77,7 +77,7 @@ class GenerateService:
 
         texts = process_file(uploaded_url, page_numbers)
 
-        minimum_page_text_length_per_chunk = 500
+        minimum_page_text_length_per_chunk = 1000
         max_chunk_count = 15
         chunks = create_chunks(
             texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
@@ -119,7 +119,7 @@ class GenerateService:
         for chunk in chunks:
             gpt_contents.append(
                 {
-                    "model": "gpt-5-mini",
+                    "model": "gpt-4.1-mini",
                     "max_completion_tokens": 10000,
                     "response_format": {
                         "type": "json_schema",
@@ -138,6 +138,8 @@ class GenerateService:
 
                                 작성 규칙:
                                 - 한국어로 작성
+                                - 문장의 끝마다 개행문자를 넣는다
+                                - 마크다운을 적극적으로 활용한다
                                 - 강의 노트를 참조하라는 문제 생성 금지 (예: "강의노트에 따르면", "본문을 참고하면" 등 금지)
 
                                 문제 생성 지침(품질/난이도):
