@@ -5,7 +5,6 @@ from typing import Any, List
 from langchain_core.output_parsers import JsonOutputParser
 
 from app.adapter.request_batch import request_text_batch
-from app.client.redis import RedisUtil
 from app.dto.model.generated_result import GeneratedResult
 from app.dto.model.problem_set import ProblemSet
 from app.dto.request.generate_request import GenerateRequest, QuizType
@@ -17,9 +16,8 @@ from app.prompt import prompt_factory
 from app.util.create_chunks import create_chunks
 from app.util.logger import logger
 from app.util.parsing import process_file
+from app.util.rate_limiter import rate_limiter
 from app.util.timing import log_elapsed
-
-redis_util = RedisUtil()
 
 
 def _enforce_additional_properties_false(schema: Any) -> Any:
@@ -83,7 +81,7 @@ class GenerateService:
             texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
         )
 
-        await redis_util.check_bedrock_rate(len(chunks), "rl:bedrock:global")
+        await rate_limiter.check_rate(len(chunks))
 
         i = 0
         while i < len(chunks):
