@@ -12,6 +12,7 @@ class ExplanationService:
     async def generate_specific_explanation(
         specific_explanation_request: SpecificExplanationRequest,
     ):
+
         title = specific_explanation_request.title
         selections = specific_explanation_request.selections
 
