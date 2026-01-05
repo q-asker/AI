@@ -1,5 +1,4 @@
 import asyncio
-import os
 from typing import List, Optional
 
 from openai import APITimeoutError
@@ -16,8 +15,7 @@ def request_chat_completion_text(gpt_request: dict) -> str:
 
 
 async def request_text_batch(
-    requests: List[dict],
-    timeout: float
+    requests: List[dict], timeout: float
 ) -> List[Optional[str]]:
     async def _one(req: dict) -> Optional[str]:
         try:
@@ -35,7 +33,9 @@ async def request_text_batch(
     done, pending = await asyncio.wait(tasks, timeout=timeout)
 
     if pending:
-        logger.error(f"Batch processing timed out after {timeout} seconds. {len(pending)} tasks incomplete.")
+        logger.error(
+            f"Batch processing timed out after {timeout} seconds. {len(pending)} tasks incomplete."
+        )
         for task in pending:
             task.cancel()
 
