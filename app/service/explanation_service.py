@@ -1,6 +1,4 @@
-import asyncio
-
-from app.adapter.request_single import request_responses_output_text
+from app.adapter.request_single import request_responses_output_text_async
 from app.dto.request.specific_explanation_request import SpecificExplanationRequest
 from app.dto.response.specific_explanation_response import SpecificExplanationResponse
 from app.util.logger import logger
@@ -58,8 +56,8 @@ class ExplanationService:
         }
 
         with log_elapsed(logger, "request_specific_explanation_with_search"):
-            combined_text = await asyncio.to_thread(
-                request_responses_output_text, gpt_content
+            combined_text = await request_responses_output_text_async(
+                gpt_content, timeout=60
             )
             combined_text = (combined_text or "").strip()
 
