@@ -1,5 +1,8 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI, status, Request
 from starlette.responses import JSONResponse
+
+load_dotenv()
 
 from app.router.generate_router import router as generate_router
 from app.util.logger import logger
