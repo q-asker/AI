@@ -2,6 +2,7 @@ import random
 from copy import deepcopy
 from typing import Any, List
 
+from fastapi import HTTPException
 from langchain_core.output_parsers import JsonOutputParser
 
 from app.adapter.request_batch import request_text_batch
@@ -166,6 +167,9 @@ class GenerateService:
                 generated_results.append(
                     GeneratedResult(sequence=sequence, generated_text=text)
                 )
+            
+            if not generated_results:
+                raise HTTPException(status_code=429, detail="모든 퀴즈 생성 요청이 실패하거나 시간 초과되었습니다.")
 
         sorted_responses = []
         for i, generated_result in enumerate(generated_results):
