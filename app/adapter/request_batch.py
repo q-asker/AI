@@ -1,18 +1,11 @@
 import asyncio
 import os
-
-from dotenv import load_dotenv
-
-load_dotenv()
 from typing import List, Optional
-from dotenv import load_dotenv
 
 from openai import APITimeoutError
 
 from app.client.oepn_ai import get_gpt_client
 from app.util.logger import logger
-
-load_dotenv()
 
 
 def request_chat_completion_text(gpt_request: dict) -> str:
