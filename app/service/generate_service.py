@@ -159,7 +159,7 @@ class GenerateService:
             )
 
         with log_elapsed(logger, "request_generate_quiz"):
-            texts = await request_text_batch(gpt_contents)
+            texts = await request_text_batch(gpt_contents, timeout=30)
             generated_results: List[GeneratedResult] = []
             for sequence, text in enumerate(texts, start=1):
                 if not text:
@@ -167,9 +167,12 @@ class GenerateService:
                 generated_results.append(
                     GeneratedResult(sequence=sequence, generated_text=text)
                 )
-            
+
             if not generated_results:
-                raise HTTPException(status_code=429, detail="모든 퀴즈 생성 요청이 실패하거나 시간 초과되었습니다.")
+                raise HTTPException(
+                    status_code=429,
+                    detail="모든 퀴즈 생성 요청이 실패하거나 시간 초과되었습니다.",
+                )
 
         sorted_responses = []
         for i, generated_result in enumerate(generated_results):
