@@ -1,12 +1,10 @@
-from dotenv import load_dotenv
+import os
+
 from fastapi import HTTPException
 from openai import APITimeoutError
-import os
 
 from app.client.oepn_ai import get_gpt_client
 from app.util.logger import logger
-
-load_dotenv()
 
 
 def request_responses_output_text(gpt_request: dict) -> str:
