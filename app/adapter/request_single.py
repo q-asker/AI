@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 from fastapi import HTTPException
 from openai import APITimeoutError
@@ -8,9 +7,7 @@ from app.client.oepn_ai import get_gpt_client
 from app.util.logger import logger
 
 
-async def request_responses_output_text_async(
-    gpt_request: dict, timeout: float
-) -> str:
+async def request_responses_output_text_async(gpt_request: dict, timeout: float) -> str:
     """Responses API 요청을 비동기로 처리하며 타임아웃을 적용한다."""
     try:
         return await asyncio.wait_for(
