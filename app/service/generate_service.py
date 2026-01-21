@@ -1,3 +1,5 @@
+import asyncio
+import os
 import random
 from copy import deepcopy
 from typing import Any, List
@@ -159,7 +161,8 @@ class GenerateService:
             )
 
         with log_elapsed(logger, "request_generate_quiz"):
-            texts = await request_text_batch(gpt_contents, timeout=30)
+            timeout = int(os.environ["GPT_REQUEST_TIMEOUT"])
+            texts = await request_text_batch(gpt_contents, timeout=timeout)
             generated_results: List[GeneratedResult] = []
             for sequence, text in enumerate(texts, start=1):
                 if not text:
