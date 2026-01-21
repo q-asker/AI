@@ -1,3 +1,4 @@
+import os
 from http.client import HTTPException
 from typing import List
 
@@ -21,7 +22,7 @@ def process_file(uploaded_url: str, page_numbers: List[int]) -> List[str]:
                 one_based_pages.append(pdf_document.get_text())
             pdf_documents.close()
 
-            if content_length < 10:
+            if content_length < int(os.environ["MIN_TEXT_LENGTH"]):
                 raise HTTPException(
                     status_code=400,
                     detail="파일에 텍스트가 충분하지 않습니다. \n 파일을 연 뒤, 텍스트가 선택되는지 확인해주세요. \n 선택되지 않는다면 OCR 변환이 필요합니다.",
