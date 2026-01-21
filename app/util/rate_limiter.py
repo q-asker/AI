@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from collections import deque
 
@@ -36,4 +37,7 @@ class LocalRateLimiter:
 
 
 # 인스턴스 생성 (싱글톤으로 관리 권장)
-rate_limiter = LocalRateLimiter(window_seconds=60, limit=75)
+rate_limiter = LocalRateLimiter(
+    window_seconds=int(os.environ["RATE_LIMIT_WINDOW_SECONDS"]),
+    limit=int(os.environ["RATE_LIMIT_MAX_REQUESTS"]),
+)

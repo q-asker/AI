@@ -1,3 +1,4 @@
+import os
 import random
 from copy import deepcopy
 from typing import Any, List
@@ -68,12 +69,14 @@ def _enforce_additional_properties_false(schema: Any) -> Any:
 class GenerateService:
     @staticmethod
     async def generate(generate_request: GenerateRequest):
+        quiz_count = generate_request.quizCount
         uploaded_url = generate_request.uploadedUrl
         total_quiz_count = generate_request.quizCount
         dok_level = generate_request.difficultyType
         quiz_type = generate_request.quizType
         page_numbers = generate_request.pageNumbers
 
+        await rate_limiter.check_rate(quiz_count)
         texts = process_file(uploaded_url, page_numbers)
 
         minimum_page_text_length_per_chunk = 1000
@@ -159,7 +162,8 @@ class GenerateService:
             )
 
         with log_elapsed(logger, "request_generate_quiz"):
-            texts = await request_text_batch(gpt_contents, timeout=30)
+            timeout = int(os.environ["GPT_REQUEST_TIMEOUT"])
+            texts = await request_text_batch(gpt_contents, timeout=timeout)
             generated_results: List[GeneratedResult] = []
             for sequence, text in enumerate(texts, start=1):
                 if not text:
