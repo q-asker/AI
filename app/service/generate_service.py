@@ -1,13 +1,18 @@
 import asyncio
+import base64
 import os
 import random
+from urllib.parse import urlparse
 from copy import deepcopy
 from typing import Any, List
 
 from fastapi import HTTPException
 from langchain_core.output_parsers import JsonOutputParser
 
-from app.adapter.request_batch import request_text_batch
+import fitz  
+import requests
+
+from app.adapter.request_batch import request_responses_batch
 from app.dto.model.generated_result import GeneratedResult
 from app.dto.model.problem_set import ProblemSet
 from app.dto.request.generate_request import GenerateRequest, QuizType
@@ -16,9 +21,9 @@ from app.dto.response.generate_response import (
     ProblemResponse,
 )
 from app.prompt import prompt_factory
-from app.util.create_chunks import create_chunks
+from app.util.create_chunks import create_page_chunks
 from app.util.logger import logger
-from app.util.parsing import process_file
+from app.util.parsing import max_page_count
 from app.util.rate_limiter import rate_limiter
 from app.util.timing import log_elapsed
 
@@ -67,6 +72,38 @@ def _enforce_additional_properties_false(schema: Any) -> Any:
     return schema
 
 
+def _extract_filename(uploaded_url: str) -> str:
+    parsed = urlparse(uploaded_url)
+    filename = os.path.basename(parsed.path)
+    return filename or "document.pdf"
+
+
+def _load_pdf_content(uploaded_url: str) -> bytes:
+    response = requests.get(uploaded_url)
+    response.raise_for_status()
+    return response.content
+
+
+def _get_pdf_page_count(file_content: bytes) -> int:
+    pdf_documents = fitz.open(stream=file_content, filetype="pdf")
+    page_count = len(pdf_documents)
+    pdf_documents.close()
+    return page_count
+
+
+def _extract_pdf_pages_base64(file_content: bytes, pages: List[int]) -> str:
+    source = fitz.open(stream=file_content, filetype="pdf")
+    target = fitz.open()
+    for page_number in pages:
+        page_index = page_number - 1
+        if 0 <= page_index < len(source):
+            target.insert_pdf(source, from_page=page_index, to_page=page_index)
+    pdf_bytes = target.tobytes()
+    target.close()
+    source.close()
+    return base64.b64encode(pdf_bytes).decode("ascii")
+
+
 class GenerateService:
     @staticmethod
     async def generate(generate_request: GenerateRequest):
@@ -75,15 +112,24 @@ class GenerateService:
         dok_level = generate_request.difficultyType
         quiz_type = generate_request.quizType
         page_numbers = generate_request.pageNumbers
+        
+        pdf_bytes = _load_pdf_content(uploaded_url)
+        page_count = _get_pdf_page_count(pdf_bytes)
+        if max_page_count < page_count:
+            raise ValueError(f"페이지 수가 {max_page_count}페이지를 초과합니다.")
 
-        texts = process_file(uploaded_url, page_numbers)
+        selected_pages = page_numbers
+        if not selected_pages:
+            selected_pages = list(range(1, page_count + 1))
+        else:
+            selected_pages = [p for p in selected_pages if 0 < p <= page_count]
 
-        minimum_page_text_length_per_chunk = 1000
+        texts = [""] * (len(selected_pages) + 1)
+
         max_chunk_count = 15
-        chunks = create_chunks(
-            texts, total_quiz_count, minimum_page_text_length_per_chunk, max_chunk_count
+        chunks = create_page_chunks(
+            len(texts) - 1, total_quiz_count, max_chunk_count
         )
-
         await rate_limiter.check_rate(len(chunks))
 
         i = 0
@@ -103,11 +149,12 @@ class GenerateService:
 
             i += 1
 
+        page_index_source = selected_pages
         for chunk in chunks:
             chunk.referenced_pages = [
-                page_numbers[i - 1]
+                page_index_source[i - 1]
                 for i in chunk.referenced_pages
-                if 1 <= i <= len(page_numbers)
+                if 1 <= i <= len(page_index_source)
             ]
 
         parser = JsonOutputParser(pydantic_object=ProblemSet)
@@ -116,45 +163,63 @@ class GenerateService:
         )
 
         gpt_contents = []
+        pdf_chunk_cache: dict[tuple[int, ...], str] = {}
 
         for chunk in chunks:
+            system_message = f"""
+                당신은 대학 강의노트로부터 평가용 퀴즈를 생성하는 AI입니다.
+                주어진 강의노트 내용을 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈를 정확히 {chunk.quiz_count}개 생성하세요.
+
+                작성 규칙:
+                - 한국어로 작성
+                - 마크다운을 활용해 가독성을 높힌다
+                - 강의 노트를 참조하라는 문제 생성 금지 (예: "강의노트에 따르면", "본문을 참고하면" 등 금지)
+
+                문제 생성 지침(품질/난이도):
+                {prompt_factory.get_quiz_generation_guide(dok_level, quiz_type)}
+
+                문항 형식(유형별 제약):
+                {prompt_factory.get_quiz_format(quiz_type)}
+                            """.strip()
+
+            page_hint = (
+                f"참조 페이지: {', '.join(map(str, chunk.referenced_pages))}"
+                if chunk.referenced_pages
+                else "참조 페이지: 없음"
+            )
+            pages_key = tuple(chunk.referenced_pages)
+            if pages_key not in pdf_chunk_cache:
+                pdf_chunk_cache[pages_key] = _extract_pdf_pages_base64(
+                    pdf_bytes, chunk.referenced_pages
+                )
+            pdf_chunk_base64 = pdf_chunk_cache[pages_key]
             gpt_contents.append(
                 {
                     "model": "gpt-4.1-mini",
-                    "max_completion_tokens": 10000,
-                    "response_format": {
-                        "type": "json_schema",
-                        "json_schema": {
+                    "max_output_tokens": 10000,
+                    "text": {
+                        "format": {
+                            "type": "json_schema",
                             "name": "problem_set",
                             "strict": True,
                             "schema": problem_set_json_schema,
-                        },
+                        }
                     },
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": f"""
-                                당신은 대학 강의노트로부터 평가용 퀴즈를 생성하는 AI입니다.
-                                주어진 강의노트 내용을 분석하여 학생들의 이해도를 평가할 수 있는 효과적인 퀴즈를 정확히 {chunk.quiz_count}개 생성하세요.
-
-                                작성 규칙:
-                                - 한국어로 작성
-                                - 마크다운을 활용해 가독성을 높힌다
-                                - 강의 노트를 참조하라는 문제 생성 금지 (예: "강의노트에 따르면", "본문을 참고하면" 등 금지)
-
-                                문제 생성 지침(품질/난이도):
-                                {prompt_factory.get_quiz_generation_guide(dok_level, quiz_type)}
-
-                                문항 형식(유형별 제약):
-                                {prompt_factory.get_quiz_format(quiz_type)}
-                                                    """.strip(),
-                        },
+                    "input": [
+                        {"role": "system", "content": system_message},
                         {
                             "role": "user",
-                            "content": f"""# 강의노트
-
-                                                    {chunk.text}
-                                                    """.strip(),
+                            "content": [
+                                {
+                                    "type": "input_text",
+                                    "text": f"# 강의노트(PDF)\n\n{page_hint}",
+                                },
+                                {
+                                    "type": "input_file",
+                                    "filename": _extract_filename(uploaded_url),
+                                    "file_data": f"data:application/pdf;base64,{pdf_chunk_base64}",
+                                },
+                            ],
                         },
                     ],
                 }
@@ -162,7 +227,7 @@ class GenerateService:
 
         with log_elapsed(logger, "request_generate_quiz"):
             timeout = int(os.environ["GPT_REQUEST_TIMEOUT"])
-            texts = await request_text_batch(gpt_contents, timeout=timeout)
+            texts = await request_responses_batch(gpt_contents, timeout=timeout)
             generated_results: List[GeneratedResult] = []
             for sequence, text in enumerate(texts, start=1):
                 if not text:
