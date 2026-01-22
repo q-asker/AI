@@ -107,6 +107,7 @@ def _extract_pdf_pages_base64(file_content: bytes, pages: List[int]) -> str:
 class GenerateService:
     @staticmethod
     async def generate(generate_request: GenerateRequest):
+        quiz_count = generate_request.quizCount
         uploaded_url = generate_request.uploadedUrl
         total_quiz_count = generate_request.quizCount
         dok_level = generate_request.difficultyType
