@@ -1,6 +1,7 @@
 import base64
 import os
 import random
+from urllib.parse import urlparse
 from copy import deepcopy
 from typing import Any, List
 from urllib.parse import urlparse
@@ -110,6 +111,11 @@ class GenerateService:
         dok_level = generate_request.difficultyType
         quiz_type = generate_request.quizType
         page_numbers = generate_request.pageNumbers
+        
+        pdf_bytes = _load_pdf_content(uploaded_url)
+        page_count = _get_pdf_page_count(pdf_bytes)
+        if max_page_count < page_count:
+            raise ValueError(f"페이지 수가 {max_page_count}페이지를 초과합니다.")
 
         pdf_bytes = _load_pdf_content(uploaded_url)
         page_count = _get_pdf_page_count(pdf_bytes)
