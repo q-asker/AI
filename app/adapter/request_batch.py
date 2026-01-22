@@ -42,6 +42,7 @@ async def request_responses_output_text(gpt_request: dict) -> str:
 async def request_responses_batch(
     requests: List[dict], timeout: float
 ) -> List[Optional[str]]:
+    # 2. 개별 요청을 처리하는 내부 함수
     async def _one(req: dict) -> Optional[str]:
         try:
             text = await request_responses_output_text(req)
@@ -53,6 +54,7 @@ async def request_responses_batch(
             logger.exception("Batch request 실패")
             return None
 
+    # 3. 태스크 생성 (여기서는 쓰레드가 아닌 가벼운 Coroutine이 생성됨)
     tasks = [asyncio.create_task(_one(r)) for r in requests]
     done, pending = await asyncio.wait(tasks, timeout=timeout)
 
@@ -61,12 +63,14 @@ async def request_responses_batch(
             f"Batch processing timed out after {timeout} seconds. {len(pending)} tasks incomplete."
         )
         for task in pending:
-            task.cancel()
+            task.cancel()  # 대기 중인 코루틴 취소
 
+    # 5. 결과 수집
     results = []
     for task in tasks:
         if task in done:
             try:
+                # task.result()는 즉시 값을 반환함 (이미 완료되었으므로)
                 results.append(task.result())
             except asyncio.CancelledError:
                 results.append(None)
