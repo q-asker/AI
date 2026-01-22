@@ -1,16 +1,14 @@
-import asyncio
 import base64
 import os
 import random
-from urllib.parse import urlparse
 from copy import deepcopy
 from typing import Any, List
+from urllib.parse import urlparse
 
+import fitz
+import requests
 from fastapi import HTTPException
 from langchain_core.output_parsers import JsonOutputParser
-
-import fitz  
-import requests
 
 from app.adapter.request_batch import request_responses_batch
 from app.dto.model.generated_result import GeneratedResult
@@ -23,7 +21,6 @@ from app.dto.response.generate_response import (
 from app.prompt import prompt_factory
 from app.util.create_chunks import create_page_chunks
 from app.util.logger import logger
-from app.util.parsing import max_page_count
 from app.util.rate_limiter import rate_limiter
 from app.util.timing import log_elapsed
 
@@ -113,11 +110,12 @@ class GenerateService:
         dok_level = generate_request.difficultyType
         quiz_type = generate_request.quizType
         page_numbers = generate_request.pageNumbers
-        
+
         pdf_bytes = _load_pdf_content(uploaded_url)
         page_count = _get_pdf_page_count(pdf_bytes)
-        if max_page_count < page_count:
-            raise ValueError(f"페이지 수가 {max_page_count}페이지를 초과합니다.")
+
+        pdf_bytes = _load_pdf_content(uploaded_url)
+        page_count = _get_pdf_page_count(pdf_bytes)
 
         selected_pages = page_numbers
         if not selected_pages:
@@ -128,9 +126,7 @@ class GenerateService:
         texts = [""] * (len(selected_pages) + 1)
 
         max_chunk_count = 15
-        chunks = create_page_chunks(
-            len(texts) - 1, total_quiz_count, max_chunk_count
-        )
+        chunks = create_page_chunks(len(texts) - 1, total_quiz_count, max_chunk_count)
         await rate_limiter.check_rate(len(chunks))
 
         i = 0
