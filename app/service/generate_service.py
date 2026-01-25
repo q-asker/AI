@@ -69,7 +69,7 @@ class GenerateService:
                     pdf_bytes, chunk.referenced_pages
                 )
             pdf_chunk_base64 = pdf_chunk_cache[pages_key]
-            if i < len(chunks) * 0.2:
+            if i < max(len(chunks) * 0.2, 3):
                 model = "gpt-4.1-mini"
             else:
                 model = "gpt-5-mini"
