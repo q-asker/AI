@@ -1,28 +1,28 @@
-import asyncio
+import os
+from functools import lru_cache
 
 from fastapi import HTTPException
-from openai import APITimeoutError
+from openai import AsyncOpenAI, APITimeoutError
 
-from app.client.oepn_ai import get_gpt_client
 from app.util.logger import logger
 
 
-async def request_responses_output_text_async(gpt_request: dict, timeout: float) -> str:
-    """Responses API 요청을 비동기로 처리하며 타임아웃을 적용한다."""
-    try:
-        return await asyncio.wait_for(
-            asyncio.to_thread(request_responses_output_text, gpt_request),
-            timeout=timeout,
-        )
-    except asyncio.TimeoutError:
-        logger.error(f"Single request timed out after {timeout} seconds.")
-        raise HTTPException(status_code=408, detail="Request Timeout")
+@lru_cache(maxsize=1)
+def get_gpt_client() -> AsyncOpenAI:
+    """OpenAI 비동기 클라이언트를 캐싱하여(싱글톤처럼) 제공한다."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY 환경변수가 설정되어 있지 않습니다.")
+
+    return AsyncOpenAI(api_key=api_key, max_retries=0)
 
 
-def request_responses_output_text(gpt_request: dict) -> str:
+async def request_to_gpt_returning_text(gpt_request: dict, timeout: int) -> str:
     """Responses API로 단건 요청을 전송하고 텍스트만 추출한다."""
     try:
-        resp = get_gpt_client().responses.create(**gpt_request)
+        client = get_gpt_client()
+        client = client.with_options(timeout=float(timeout))
+        resp = await client.responses.create(**gpt_request)
     except APITimeoutError:
         logger.error("OpenAI API Timeout")
         raise HTTPException(status_code=429, detail="OpenAI API Timeout")
